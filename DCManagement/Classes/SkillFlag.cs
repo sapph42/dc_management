@@ -5,20 +5,47 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DCManagement.Classes;
-[Flags]
-internal enum SkillFlag : uint {
-    None = 0,
-    Dentist = 1,
-    DentalAssistant = 2,
-    EFDA = 4,
-    RDH = 8,
-    Sterilization = 16,
-    MSA = 32,
-    NCO = 64,
-    PracticeManager = 128,
-    NCOIC = 256,
-    OIC = 512,
-    PurchaseCoord = 1024,
-    Supply = 2048,
-    IT = 4096
+
+internal class SkillFlag {
+    public static DynamicEnum Flags = [];
+    private uint _enumValue;
+    public uint Value {
+        get { return _enumValue; }
+    }
+    public SkillFlag() { }
+    public void SetValue(uint value) {
+        if (value > Flags.Keys.Sum(key => (uint)key))
+            throw new ArgumentOutOfRangeException(nameof(value));
+        _enumValue = value;
+    }
+    public override string ToString() {
+        if (Flags.TryGetValue(_enumValue, out string? singleVal))
+            return singleVal;
+        List<uint> keys = [.. Flags.Keys.Order()];
+        List<string> output = [];
+        foreach (uint key in keys) {
+            if ((key & _enumValue) == key)
+                output.Add(Flags[key]);
+        }
+        return string.Join(", ", output);
+    }
+    public string ToString(string? format) {
+        return format switch {
+            null or "G" or "g" or "F" or "f" => ToString(),
+            "D" or "d" => _enumValue.ToString(),
+            "X" or "x" => Convert.ToString(_enumValue, 16),
+            _ => throw new FormatException("format contains an invalid specification"),
+        };
+    }
+    public uint[] GetValues() {
+        if (Flags.ContainsKey(_enumValue))
+            return [_enumValue];
+        List<uint> keys = [.. Flags.Keys.Order()];
+        List<uint> returnValues = [];
+        foreach (uint key in keys) {
+            if ((key & _enumValue) == key)
+                returnValues.Add(key);
+        }
+        return [.. returnValues];
+    }
 }

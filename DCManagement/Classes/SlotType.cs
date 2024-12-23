@@ -11,9 +11,6 @@ internal class SlotType {
     public SkillFlag SkillFlag { get; set;}
     public Color SlotColor { get; set; }
     public SlotType() { }
-    public int GetSkillFlagValue() {
-        return (int)SkillFlag;
-    }
     public void SetSlotColor (string ColorHex) {
         SlotColor = ColorTranslator.FromHtml (ColorHex);
     }
