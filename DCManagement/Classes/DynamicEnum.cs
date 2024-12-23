@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DCManagement.Classes; 
+﻿namespace DCManagement.Classes; 
 public class DynamicEnum : Dictionary<uint, string> {
     public DynamicEnum() { }
     public void AddRange(IEnumerable<KeyValuePair<uint, string>> enumerable) {
