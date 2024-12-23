@@ -52,6 +52,9 @@ internal class Location {
     public bool IntersectsWith(Location OtherLocation) {
         return Rect.IntersectsWith(OtherLocation.Rect);
     }
+    public bool IntersectsWith(Rectangle rect) {
+        return Rect.IntersectsWith(rect);
+    }
     public SqlParameter[] GetSqlParameters() {
         var coll = new SqlParameter[5];
         coll[0] = new SqlParameter() {
@@ -75,6 +78,41 @@ internal class Location {
             Value = Size.Height
         };
         coll[4] = new SqlParameter() {
+            ParameterName = "@SizeW",
+            SqlDbType = SqlDbType.Int,
+            Value = Size.Width
+        };
+        return coll;
+    }
+    public SqlParameter[] GetSqlParameters(bool forUpdate) {
+        if (!forUpdate) return GetSqlParameters();
+        var coll = new SqlParameter[6];
+        coll[0] = new SqlParameter() {
+            ParameterName = "@ID",
+            SqlDbType = SqlDbType.Int,
+            Value = LocID
+        };
+        coll[1] = new SqlParameter() {
+            ParameterName = "@Name",
+            SqlDbType = SqlDbType.VarChar,
+            Value = Name
+        };
+        coll[2] = new SqlParameter() {
+            ParameterName = "@LocX",
+            SqlDbType = SqlDbType.Int,
+            Value = UpperLeft.X
+        };
+        coll[3] = new SqlParameter() {
+            ParameterName = "@LocY",
+            SqlDbType = SqlDbType.Int,
+            Value = UpperLeft.Y
+        };
+        coll[4] = new SqlParameter() {
+            ParameterName = "@SizeH",
+            SqlDbType = SqlDbType.Int,
+            Value = Size.Height
+        };
+        coll[5] = new SqlParameter() {
             ParameterName = "@SizeW",
             SqlDbType = SqlDbType.Int,
             Value = Size.Width
