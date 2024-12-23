@@ -8,7 +8,7 @@ namespace DCManagement.Classes;
 
 internal class SkillFlag {
     public static DynamicEnum Flags = [];
-    private uint _enumValue;
+    private uint _enumValue = 0;
     public uint Value {
         get { return _enumValue; }
     }
