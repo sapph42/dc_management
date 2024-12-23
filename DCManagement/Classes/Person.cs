@@ -11,5 +11,7 @@ internal class Person {
     public string FirstName { get; set; } = string.Empty;
     public Team? Team { get; set; }
     public SkillFlag SkillFlag { get; set; } = new();
+    public bool IsActive { get; set; } = true;
+    public bool IsAvailable { get; set; } = true;
     public Person() { }
 }

@@ -41,4 +41,10 @@ internal class SkillFlag {
         }
         return [.. returnValues];
     }
+    public bool HasFlag(string flag) {
+        uint? flagValue = Flags.GetValue(flag);
+        if (flagValue is null)
+            return false;
+        return ((_enumValue & flagValue) == flagValue);
+    }
 }

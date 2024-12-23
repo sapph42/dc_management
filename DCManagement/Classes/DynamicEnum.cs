@@ -54,5 +54,4 @@ public class DynamicEnum : Dictionary<uint, string> {
             return name;
         return null;
     }
-
 }
