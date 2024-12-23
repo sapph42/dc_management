@@ -1,17 +1,8 @@
 ﻿using DCManagement.Classes;
 using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
-using System.DirectoryServices.ActiveDirectory;
-using System.Drawing;
-using System.Linq;
-using System.Runtime.InteropServices.Marshalling;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace DCManagement.Forms {
     public partial class LocationManagement : Form {
@@ -33,17 +24,6 @@ namespace DCManagement.Forms {
         private void ConnOpen() {
             if (conn.State != ConnectionState.Open)
                 conn.Open();
-        }
-        private void DrawRect(Rectangle rect, Color color) {
-            if (BackgroundImage is null)
-                return;
-            Bitmap image = new(BackgroundImage);
-            using Graphics graphics = Graphics.FromImage(image);
-            using Pen pen = new(color);
-            rect.Offset(new Point(EditMenu.Height, 0));
-            pen.Width = 1f;
-            graphics.DrawRectangle(pen, rect);
-            BackgroundImage = image;
         }
         private void LoadFloorplan() {
             ConnOpen();
@@ -94,7 +74,7 @@ namespace DCManagement.Forms {
             using Pen textPen = new(Color.Black);
             using Brush textBrush = textPen.Brush;
             borderPen.Width = 1f;
-            foreach (var location in _locationCollection) {
+            foreach (var location in _locationCollection.Values) {
                 graphics.DrawRectangle(borderPen, location.Rect);
                 graphics.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), textBrush, location.UpperLeft);
             }
@@ -110,7 +90,7 @@ namespace DCManagement.Forms {
             using Pen textPen = new(Color.Black);
             using Brush textBrush = textPen.Brush;
             borderPen.Width = 1f;
-            foreach (var location in usingCollection) {
+            foreach (var location in usingCollection.Values) {
                 graphics.DrawRectangle(borderPen, location.Rect);
                 graphics.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), textBrush, location.UpperLeft);
             }
@@ -276,7 +256,7 @@ namespace DCManagement.Forms {
                 cmd.CommandText = "dbo.UpdateLocation";
                 cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
                 _ = cmd.ExecuteNonQuery();
-                _locationCollection.Update(_lastClickLocation);
+                _locationCollection[_lastClickLocation.LocID] = _lastClickLocation;
                 _lastClickLocation = null;
             } else if (_pendingLocation is not null && _lastClickLocation is null) {
                 ConnOpen();
@@ -310,8 +290,9 @@ namespace DCManagement.Forms {
                 };
                 image = new(_floorPlanMoving);
                 using Graphics g = Graphics.FromImage(image);
-                pen = new(Color.Black);
-                pen.Width = 2f;
+                pen = new(Color.Black) {
+                    Width = 2f
+                };
                 g.DrawRectangle(pen, rect);
                 BackgroundImage = image;
                 return;
@@ -338,9 +319,10 @@ namespace DCManagement.Forms {
             Debug.WriteLine($"RectX: {rect.Location.X}, RectY{rect.Location.Y}, RectWidth{rect.Size.Width}, RectHeight{rect.Size.Height}, RectLeft{rect.Left}, RectTop{rect.Top}, RectRight{rect.Right}, RectBottom{rect.Bottom}");
             image = new(_floorPlanWithLocations);
             using Graphics graphics = Graphics.FromImage(image);
-            pen = new(Color.Red);
-            pen.DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot;
-            pen.Width = 2f;
+            pen = new(Color.Red) {
+                DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot,
+                Width = 2f
+            };
             graphics.DrawRectangle(pen, rect);
             BackgroundImage = image;
         }

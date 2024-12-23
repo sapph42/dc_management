@@ -42,6 +42,13 @@ internal class Location {
         UpperLeft = new((int)values[2], (int)values[3]);
         Size = new((int)values[4], (int)values[5]);
     }
+    public Location Clone() {
+        Location clone = new(Rect) {
+            LocID = this.LocID,
+            Name = this.Name
+        };
+        return clone;
+    }
     public bool IsPointInside(Point point) {
         return point.X >= UpperLeft.X && point.X <= Rect.Right &&
             point.Y >= UpperLeft.Y && point.Y <= Rect.Bottom;

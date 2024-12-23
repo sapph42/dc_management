@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DCManagement.Classes;
-
+﻿namespace DCManagement.Classes;
 internal class SkillFlag {
     public static DynamicEnum Flags = [];
     private uint _enumValue = 0;
