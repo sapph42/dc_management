@@ -59,14 +59,14 @@
             SetClinicFloorplanTSMI.Name = "SetClinicFloorplanTSMI";
             SetClinicFloorplanTSMI.Size = new Size(177, 22);
             SetClinicFloorplanTSMI.Text = "Set Clinic Floorplan";
-            SetClinicFloorplanTSMI.Click += setClinicFloorplanToolStripMenuItem_Click;
+            SetClinicFloorplanTSMI.Click += SetClinicFloorplanToolStripMenuItem_Click;
             // 
             // DrawNewLocationTSMI
             // 
             DrawNewLocationTSMI.Name = "DrawNewLocationTSMI";
             DrawNewLocationTSMI.Size = new Size(177, 22);
             DrawNewLocationTSMI.Text = "Draw New Location";
-            DrawNewLocationTSMI.Click += drawNewLocationToolStripMenuItem_Click;
+            DrawNewLocationTSMI.Click += DrawNewLocationToolStripMenuItem_Click;
             // 
             // MouseCoordTSMI
             // 
