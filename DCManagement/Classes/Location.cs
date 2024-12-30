@@ -49,6 +49,9 @@ internal class Location {
         };
         return clone;
     }
+    public bool Equals(Location otherLocation) {
+        return (LocID == otherLocation.LocID &&  Name == otherLocation.Name);
+    }
     public bool IsPointInside(Point point) {
         return point.X >= UpperLeft.X && point.X <= Rect.Right &&
             point.Y >= UpperLeft.Y && point.Y <= Rect.Bottom;
