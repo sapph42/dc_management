@@ -29,18 +29,22 @@
             SetClinicFloorplanTSMI = new ToolStripMenuItem();
             DrawNewLocationTSMI = new ToolStripMenuItem();
             MouseCoordTSMI = new ToolStripMenuItem();
+            AlertMessagesTSMI = new ToolStripMenuItem();
+            CancelPendingActionToolStripMenuItem = new ToolStripMenuItem();
             TeamTooltip = new ToolTip(components);
             ContextMenu = new ContextMenuStrip(components);
             RenameLocationToolStripMenuItem = new ToolStripMenuItem();
             DeleteLocationToolStripMenuItem = new ToolStripMenuItem();
             MoveLocationToolStripMenuItem = new ToolStripMenuItem();
+            AlertMessageTimer = new System.Windows.Forms.Timer(components);
+            NameEditTextbox = new TextBox();
             EditMenu.SuspendLayout();
             ContextMenu.SuspendLayout();
             SuspendLayout();
             // 
             // EditMenu
             // 
-            EditMenu.Items.AddRange(new ToolStripItem[] { EditTSMI, MouseCoordTSMI });
+            EditMenu.Items.AddRange(new ToolStripItem[] { EditTSMI, MouseCoordTSMI, AlertMessagesTSMI, CancelPendingActionToolStripMenuItem });
             EditMenu.Location = new Point(0, 0);
             EditMenu.Name = "EditMenu";
             EditMenu.Size = new Size(1109, 24);
@@ -74,6 +78,21 @@
             MouseCoordTSMI.Size = new Size(26, 20);
             MouseCoordTSMI.Text = "X";
             // 
+            // AlertMessagesTSMI
+            // 
+            AlertMessagesTSMI.Alignment = ToolStripItemAlignment.Right;
+            AlertMessagesTSMI.Name = "AlertMessagesTSMI";
+            AlertMessagesTSMI.Size = new Size(12, 20);
+            AlertMessagesTSMI.TextChanged += AlertMessagesTSMI_TextChanged;
+            // 
+            // CancelPendingActionToolStripMenuItem
+            // 
+            CancelPendingActionToolStripMenuItem.Name = "CancelPendingActionToolStripMenuItem";
+            CancelPendingActionToolStripMenuItem.Size = new Size(55, 20);
+            CancelPendingActionToolStripMenuItem.Text = "Cancel";
+            CancelPendingActionToolStripMenuItem.Visible = false;
+            CancelPendingActionToolStripMenuItem.Click += CancelPendingActionToolStripMenuItem_Click;
+            // 
             // TeamTooltip
             // 
             TeamTooltip.Active = false;
@@ -82,29 +101,44 @@
             // 
             ContextMenu.Items.AddRange(new ToolStripItem[] { RenameLocationToolStripMenuItem, DeleteLocationToolStripMenuItem, MoveLocationToolStripMenuItem });
             ContextMenu.Name = "ContextMenu";
-            ContextMenu.Size = new Size(181, 92);
+            ContextMenu.Size = new Size(167, 70);
             ContextMenu.Opening += ContextMenu_Opening;
             // 
             // RenameLocationToolStripMenuItem
             // 
             RenameLocationToolStripMenuItem.Name = "RenameLocationToolStripMenuItem";
-            RenameLocationToolStripMenuItem.Size = new Size(180, 22);
+            RenameLocationToolStripMenuItem.Size = new Size(166, 22);
             RenameLocationToolStripMenuItem.Text = "Rename Location";
             RenameLocationToolStripMenuItem.Click += RenameLocationToolStripMenuItem_Click;
             // 
             // DeleteLocationToolStripMenuItem
             // 
             DeleteLocationToolStripMenuItem.Name = "DeleteLocationToolStripMenuItem";
-            DeleteLocationToolStripMenuItem.Size = new Size(180, 22);
+            DeleteLocationToolStripMenuItem.Size = new Size(166, 22);
             DeleteLocationToolStripMenuItem.Text = "Delete Location";
             DeleteLocationToolStripMenuItem.Click += DeleteLocationToolStripMenuItem_Click;
             // 
             // MoveLocationToolStripMenuItem
             // 
             MoveLocationToolStripMenuItem.Name = "MoveLocationToolStripMenuItem";
-            MoveLocationToolStripMenuItem.Size = new Size(180, 22);
+            MoveLocationToolStripMenuItem.Size = new Size(166, 22);
             MoveLocationToolStripMenuItem.Text = "Move Location";
             MoveLocationToolStripMenuItem.Click += MoveLocationToolStripMenuItem_Click;
+            // 
+            // AlertMessageTimer
+            // 
+            AlertMessageTimer.Interval = 5000;
+            AlertMessageTimer.Tick += AlertMessageTimer_Tick;
+            // 
+            // NameEditTextbox
+            // 
+            NameEditTextbox.Location = new Point(354, 362);
+            NameEditTextbox.Name = "NameEditTextbox";
+            NameEditTextbox.Size = new Size(200, 23);
+            NameEditTextbox.TabIndex = 1;
+            NameEditTextbox.TabStop = false;
+            NameEditTextbox.Visible = false;
+            NameEditTextbox.KeyUp += NameEditTextbox_KeyUp;
             // 
             // LocationManagement
             // 
@@ -112,13 +146,13 @@
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1109, 620);
             ContextMenuStrip = ContextMenu;
+            Controls.Add(NameEditTextbox);
             Controls.Add(EditMenu);
             MainMenuStrip = EditMenu;
             Name = "LocationManagement";
             Text = "LocationManagement";
             FormClosing += LocationManagement_FormClosing;
             Load += LocationManagement_Load;
-            Click += LocationManagement_Click;
             MouseDown += LocationManagement_MouseDown;
             MouseMove += LocationManagement_MouseMove;
             MouseUp += LocationManagement_MouseUp;
@@ -141,5 +175,9 @@
         private ToolStripMenuItem RenameLocationToolStripMenuItem;
         private ToolStripMenuItem DeleteLocationToolStripMenuItem;
         private ToolStripMenuItem MoveLocationToolStripMenuItem;
+        private ToolStripMenuItem AlertMessagesTSMI;
+        private System.Windows.Forms.Timer AlertMessageTimer;
+        private ToolStripMenuItem CancelPendingActionToolStripMenuItem;
+        private TextBox NameEditTextbox;
     }
 }

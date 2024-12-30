@@ -6,9 +6,22 @@ using System.Diagnostics;
 
 namespace DCManagement.Forms {
     public partial class LocationManagement : Form {
+        private enum ActionState {
+            None,
+            Moving,
+            Drawing,
+            NamingNew,
+            Renaming
+        }
+        private enum ActionAllowed {
+            None,
+            Moving,
+            Drawing
+        }
+        #region Fields
         private readonly SqlConnection conn;
-        private bool _drawing = false;
-        private bool _moving = false;
+        private ActionState _actionState;
+        private ActionAllowed _actionAllowed;
         private Point _lastClick;
         private Point? _firstPoint;
         private Location? _pendingLocation;
@@ -17,16 +30,18 @@ namespace DCManagement.Forms {
         private Image _floorPlan = new Bitmap(1, 1);
         private Image _floorPlanWithLocations = new Bitmap(1, 1);
         private Image _floorPlanMoving = new Bitmap(1, 1);
+        private readonly StateString _state = new();
+        #endregion
         public LocationManagement() {
             conn = new(Program.SqlConnectionString);
             InitializeComponent();
         }
+        #region Internal Helper Functions
+        #region Database Interaction
         private void ConnOpen() {
             if (conn.State != ConnectionState.Open)
                 conn.Open();
         }
-        #region Internal Helper Functions
-        #region Database Interaction
         private void LoadFloorplan() {
             ConnOpen();
             using SqlCommand cmd = new();
@@ -47,7 +62,7 @@ namespace DCManagement.Forms {
             if (floorplan is null)
                 return;
             reader.Close();
-            BackgroundImage = floorplan;
+            BackgroundImage = _floorPlanWithLocations;
             BackgroundImageLayout = ImageLayout.Stretch;
             GetLocations();
             DrawLocations();
@@ -68,47 +83,48 @@ namespace DCManagement.Forms {
             reader.Close();
         }
         private void WriteNewLocation() {
-            if (_pendingLocation is null && _lastClickLocation is null) return;
-            if (_pendingLocation is null && _lastClickLocation is not null) {
-                ConnOpen();
-                using SqlCommand cmd = new();
-                cmd.Connection = conn;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "dbo.UpdateLocation";
-                cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
-                _ = cmd.ExecuteNonQuery();
-                _locationCollection[_lastClickLocation.LocID] = _lastClickLocation;
-                _lastClickLocation = null;
-            } else if (_pendingLocation is not null && _lastClickLocation is null) {
-                ConnOpen();
-                using SqlCommand cmd = new();
-                cmd.Connection = conn;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "dbo.InsertLocation";
-                cmd.Parameters.AddRange(_pendingLocation.GetSqlParameters());
-                _pendingLocation.LocID = (int)cmd.ExecuteScalar();
-                _locationCollection.Add(_pendingLocation);
-                _pendingLocation = null;
+            switch (_actionState) {
+                case ActionState.NamingNew:
+                case ActionState.Drawing:
+                    if (_pendingLocation is null)
+                        return;
+                    ConnOpen();
+                    using (SqlCommand cmd = new()) {
+                        cmd.Connection = conn;
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.CommandText = "dbo.InsertLocation";
+                        cmd.Parameters.AddRange(_pendingLocation.GetSqlParameters());
+                        _pendingLocation.LocID = (int)cmd.ExecuteScalar();
+                        _locationCollection.Add(_pendingLocation);
+                        _pendingLocation = null;
+                    }
+                    break;
+                case ActionState.Moving:
+                case ActionState.Renaming:
+                    if (_lastClickLocation is null)
+                        return;
+                    ConnOpen();
+                    using (SqlCommand cmd = new()) {
+                        cmd.Connection = conn;
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.CommandText = "dbo.UpdateLocation";
+                        cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
+                        _ = cmd.ExecuteNonQuery();
+                        _locationCollection[_lastClickLocation.LocID] = _lastClickLocation;
+                        _lastClickLocation = null;
+                    }
+                    break;
+                default:
+                    break;
             }
-            LoadFloorplan();
+            DrawLocations();
         }
         #endregion
         #region Drawing
         private void DrawLocations() {
             if (BackgroundImage is null || _locationCollection is null || !_locationCollection.Any())
                 return;
-            Bitmap image = new(_floorPlan);
-            using Graphics graphics = Graphics.FromImage(image);
-            using Pen borderPen = new(Color.Black);
-            using Pen textPen = new(Color.Black);
-            using Brush textBrush = textPen.Brush;
-            borderPen.Width = 1f;
-            foreach (var location in _locationCollection.Values) {
-                graphics.DrawRectangle(borderPen, location.Rect);
-                graphics.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), textBrush, location.UpperLeft);
-            }
-            BackgroundImage = image;
-            _floorPlanWithLocations = image;
+            DrawLocations(_locationCollection);
         }
         private void DrawLocations(LocationCollection usingCollection) {
             if (BackgroundImage is null || usingCollection is null || !usingCollection.Any())
@@ -123,8 +139,9 @@ namespace DCManagement.Forms {
                 graphics.DrawRectangle(borderPen, location.Rect);
                 graphics.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), textBrush, location.UpperLeft);
             }
-            BackgroundImage = image;
-            _floorPlanMoving = image;
+            _floorPlanWithLocations = (Image)image.Clone();
+            _floorPlanMoving = (Image)image.Clone(); ;
+            BackgroundImage = _floorPlanWithLocations;
         }
         #endregion
         private Point AdjustPointForScaling(Point BasePoint) {
@@ -137,11 +154,36 @@ namespace DCManagement.Forms {
                 (int)(BasePoint.Y * scaleY)
             );
         }
-
+        private Point AdjustPointforScalingInverse(Point BasePoint) {
+            if (BackgroundImage is null)
+                return BasePoint;
+            float scaleX = (float)BackgroundImage.Width / ClientSize.Width;
+            float scaleY = (float)BackgroundImage.Height / ClientSize.Height;
+            return new Point(
+                (int)(BasePoint.X / scaleX),
+                (int)(BasePoint.Y / scaleY)
+            );
+        }
+        private void CancelActionStates(bool keepFields = false) {
+            _actionAllowed = ActionAllowed.None;
+            _actionState = ActionState.None;
+            _state.Text = "";
+            NameEditTextbox.Text = "";
+            NameEditTextbox.Visible = false;
+            BackgroundImage = _floorPlanWithLocations;
+            if (!keepFields) {
+                _lastClick = new();
+                _lastClickLocation = null;
+                _pendingLocation = null;
+                CancelPendingActionToolStripMenuItem.Visible = false;
+            }
+        }
         #endregion
         #region Form Event Handlers
         private void LocationManagement_Load(object sender, EventArgs e) {
             LoadFloorplan();
+            _state.StateChanged += State_TextChanged;
+            CancelActionStates();
         }
         private void LocationManagement_FormClosing(object sender, FormClosingEventArgs e) {
             conn.Close();
@@ -149,141 +191,226 @@ namespace DCManagement.Forms {
         }
         private void LocationManagement_MouseDown(object sender, MouseEventArgs e) {
             _lastClick = AdjustPointForScaling(e.Location);
-            if (_moving)
+            Debug.WriteLine($"MouseDown @ {e.X},{e.Y}, Adjusted {_lastClick.X},{_lastClick.Y}; Button: {e.Button}, " +
+                $"ActionAllowed: {_actionAllowed}, ActionState: {_actionState}, " +
+                $"PendingLocation: {(_pendingLocation is null ? "IsNull" : "IsNotNull")} " +
+                $"BackgroundImage: {(BackgroundImage is null ? "IsNull" : "IsNotNull")}");
+            if (e.Button == MouseButtons.Right || BackgroundImage is null)
                 return;
-            if (BackgroundImage is null)
-                return;
-            if (_pendingLocation is not null) {
-                if (_pendingLocation.IsPointInside(_lastClick))
-                    return;
-                _pendingLocation = null;
-                BackgroundImage = _floorPlanWithLocations;
-                Refresh();
+            switch (_actionAllowed) {
+                case ActionAllowed.Moving:
+                    if (_actionState == ActionState.Moving)
+                        return;
+                    _lastClickLocation = _locationCollection.FindByPoint(_lastClick);
+                    if (_lastClickLocation is null)
+                        return;
+                    _actionState = ActionState.Moving;
+                    _state.Text = "Select location to move";
+                    _floorPlanMoving = (Image)_floorPlanWithLocations.Clone();
+                    break;
+                case ActionAllowed.Drawing:
+                    if (_pendingLocation is not null) {
+                        _pendingLocation = null;
+                    }
+                    if (_locationCollection.FindByPoint(_lastClick) is not null) {
+                        AlertMessagesTSMI.Text = "Cannot create a new location inside a current location!";
+                        _actionState = ActionState.Drawing;
+                        return;
+                    }
+                    _firstPoint = _lastClick;
+                    _actionState = ActionState.Drawing;
+                    _floorPlanMoving = (Image)_floorPlanWithLocations.Clone();
+                    Refresh();
+                    break;
+                default:
+                    break;
             }
-            _firstPoint = e.Location;
-            _drawing = true;
-            Debug.WriteLine($"Drawing active @ {e.X},{e.Y}");
         }
         private void LocationManagement_MouseUp(object sender, MouseEventArgs e) {
-            Debug.WriteLine($"MouseUp @ {e.X},{e.Y} x ");
             Point click = AdjustPointForScaling(e.Location);
-            if (!_moving && BackgroundImage is not null) {
-                if (_lastClickLocation is null)
-                    return;
-                Rectangle proposedRect = new() {
-                    Location = click,
-                    Size = _lastClickLocation.Size
-                };
-                if (_locationCollection.IntersectsWithAny(proposedRect)) {
-                    _moving = false;
-                    BackgroundImage = _floorPlanWithLocations;
-                    MessageBox.Show("Locations cannot be moved to overlap with existing locations");
-                    return;
-                }
-                _lastClickLocation.UpperLeft = click;
-                WriteNewLocation();
-            } else if (!_drawing && BackgroundImage is not null) {
-                if (_pendingLocation is null || !_pendingLocation.IsPointInside(click))
-                    return;
-                TextBox newName = new() {
-                    Size = new(200, 20),
-                    Location = new(_pendingLocation.CenterLeft.X - 10, _pendingLocation.CenterLeft.Y)
-                };
-                Debug.WriteLine($"Create pending loc name box @ {newName.Location.X},{newName.Location.Y}");
-                SuspendLayout();
-                Controls.Add(newName);
-                ResumeLayout();
-                newName.KeyDown += TextKeyDownHandler;
-                newName.Focus();
+            Debug.WriteLine($"MouseUp @ {e.X},{e.Y}, Adjusted {click.X},{click.Y}; Button: {e.Button}, " +
+                $"ActionAllowed: {_actionAllowed}, ActionState: {_actionState}, " +
+                $"PendingLocation: {(_pendingLocation is null ? "IsNull" : "IsNotNull")} " +
+                $"BackgroundImage: {(BackgroundImage is null ? "IsNull" : "IsNotNull")}");
+            if (e.Button == MouseButtons.Right || BackgroundImage is null)
                 return;
-            } else if (!_drawing || _firstPoint is null || BackgroundImage is null)
+            if (_actionState == ActionState.None)
                 return;
-            else {
-                Point first = AdjustPointForScaling((Point)_firstPoint);
-                Point second = click;
-                Rectangle rect = new() {
-                    Location = new() {
-                        X = Math.Min(first.X, second.X),
-                        Y = Math.Min(first.Y, second.Y)
-                    },
-                    Size = new() {
-                        Width = Math.Abs(first.X - second.X),
-                        Height = Math.Abs(first.Y - second.Y)
+            switch (_actionState) {
+                case ActionState.Moving:
+                    if (_actionAllowed != ActionAllowed.Moving || _lastClickLocation is null) {
+                        CancelActionStates();
+                        return;
                     }
-                };
-                Debug.WriteLine($"Create pending loc  @ {first.X},{first.Y} x {rect.Right},{rect.Bottom}");
-                _pendingLocation = new(rect);
-                if (_locationCollection.IntersectsWithAny(_pendingLocation)) {
-                    _pendingLocation = null;
-                    MessageBox.Show("A new location may not overlap with existing locations.");
-                    _drawing = false;
-                    return;
-                }
-                Bitmap image = new(_floorPlanWithLocations);
-                using Graphics graphics = Graphics.FromImage(image);
-                using Pen pen = new(Color.Red);
-                pen.Width = 2f;
-                graphics.DrawRectangle(pen, rect);
-                BackgroundImage = image;
-                _drawing = false;
+                    Rectangle proposedRect = new() {
+                        Location = click,
+                        Size = _lastClickLocation.Size
+                    };
+                    if (proposedRect.Right > BackgroundImage.Width || proposedRect.Bottom > BackgroundImage.Height) {
+                        _actionState = ActionState.None;
+                        _lastClickLocation = null;
+                        BackgroundImage = _floorPlanWithLocations;
+                        AlertMessagesTSMI.Text = "Locations cannot extend out of bounds";
+                        return;
+                    }
+                    if (_locationCollection.IntersectsWithAny(proposedRect) && _locationCollection.IntersectWithByID(proposedRect) != _lastClickLocation.LocID) {
+                        _actionState = ActionState.None;
+                        _lastClickLocation = null;
+                        BackgroundImage = _floorPlanWithLocations;
+                        AlertMessagesTSMI.Text = "Locations cannot be moved to overlap with existing locations";
+                        return;
+                    }
+                    _lastClickLocation.UpperLeft = click;
+                    WriteNewLocation();
+                    _actionState = ActionState.None;
+                    _actionAllowed = ActionAllowed.None;
+                    _lastClickLocation = null;
+                    _lastClick = new();
+                    _state.Text = "";
+                    break;
+                case ActionState.Drawing:
+                    if (_actionAllowed != ActionAllowed.Drawing || _firstPoint is null) {
+                        CancelActionStates();
+                        return;
+                    }
+                    Point first = (Point)_firstPoint;
+                    Point second = click;
+                    Rectangle rect = new() {
+                        Location = new() {
+                            X = Math.Min(first.X, second.X),
+                            Y = Math.Min(first.Y, second.Y)
+                        },
+                        Size = new() {
+                            Width = Math.Abs(first.X - second.X),
+                            Height = Math.Abs(first.Y - second.Y)
+                        }
+                    };
+                    _pendingLocation = new(rect);
+                    if (_locationCollection.IntersectsWithAny(_pendingLocation)) {
+                        _pendingLocation = null;
+                        _actionState = ActionState.None;
+                        _firstPoint = null;
+                        AlertMessagesTSMI.Text = "A new location may not overlap with existing locations.";
+                        return;
+                    }
+                    Bitmap image = new(_floorPlanWithLocations);
+                    using (Graphics graphics = Graphics.FromImage(image)) {
+                        using Pen pen = new(Color.Red);
+                        pen.Width = 2f;
+                        graphics.DrawRectangle(pen, rect);
+                        BackgroundImage = image;
+                    }
+                    _actionState = ActionState.NamingNew;
+                    NameEditTextbox.Location = AdjustPointforScalingInverse(new(_pendingLocation.CenterLeft.X - 10, _pendingLocation.CenterLeft.Y));
+                    NameEditTextbox.Text = "";
+                    NameEditTextbox.Visible = true;
+                    NameEditTextbox.BringToFront();
+                    _state.Text = $"Naming new location";
+                    NameEditTextbox.Focus();
+                    break;
+                default:
+                    break;
             }
-        }
-        private void LocationManagement_Click(object sender, EventArgs e) {
-
+            CancelPendingActionToolStripMenuItem.Visible = false;
         }
         private void LocationManagement_MouseMove(object sender, MouseEventArgs e) {
             MouseCoordTSMI.Text = $"{e.X},{e.Y}";
-            Bitmap image;
+            if (BackgroundImage is null)
+                return;
+            Bitmap image = new(_floorPlanMoving);
             Rectangle rect;
             Pen pen;
-            if (_moving) {
-                if (_lastClickLocation is null)
+            switch (_actionState) {
+                case ActionState.Moving:
+                    if (_lastClickLocation is null) {
+                        CancelActionStates();
+                        return;
+                    }
+                    Point current = AdjustPointForScaling(e.Location);
+                    rect = new() {
+                        Location = current,
+                        Size = _lastClickLocation.Size
+                    };
+                    using (Graphics g = Graphics.FromImage(image)) {
+                        pen = new(Color.Black) {
+                            Width = 2f
+                        };
+                        g.DrawRectangle(pen, rect);
+                        BackgroundImage = image;
+                    }
+                    break;
+                case ActionState.Drawing:
+                    if (_firstPoint is null || _pendingLocation is not null) {
+                        CancelActionStates();
+                        return;
+                    }
+                    Point second = AdjustPointForScaling(e.Location);
+                    Location? loc = _locationCollection.FindByPoint(second);
+                    if (loc is not null) {
+                        TeamTooltip.Active = true;
+                        TeamTooltip.ToolTipTitle = loc.Name;
+                    }
+                    Point first = (Point)_firstPoint;
+                    rect = new() {
+                        Location = new() {
+                            X = Math.Min(first.X, second.X),
+                            Y = Math.Min(first.Y, second.Y)
+                        },
+                        Size = new() {
+                            Width = Math.Abs(first.X - second.X),
+                            Height = Math.Abs(first.Y - second.Y)
+                        }
+                    };
+                    Debug.WriteLine($"RectX: {rect.Location.X}, RectY{rect.Location.Y}, RectWidth{rect.Size.Width}, RectHeight{rect.Size.Height}, RectLeft{rect.Left}, RectTop{rect.Top}, RectRight{rect.Right}, RectBottom{rect.Bottom}");
+                    using (Graphics graphics = Graphics.FromImage(image)) {
+                        pen = new(Color.Red) {
+                            DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot,
+                            Width = 2f
+                        };
+                        graphics.DrawRectangle(pen, rect);
+                        BackgroundImage = image;
+                    }
+                    break;
+                default:
                     return;
-                Point current = AdjustPointForScaling(e.Location);
-                rect = new() {
-                    Location = current,
-                    Size = _lastClickLocation.Size
-                };
-                image = new(_floorPlanMoving);
-                using Graphics g = Graphics.FromImage(image);
-                pen = new(Color.Black) {
-                    Width = 2f
-                };
-                g.DrawRectangle(pen, rect);
-                BackgroundImage = image;
-                return;
             }
-            Point second = AdjustPointForScaling(e.Location);
-            Location? loc = _locationCollection.FindByPoint(second);
-            if (loc is not null) {
-                TeamTooltip.Active = true;
-                TeamTooltip.ToolTipTitle = loc.Name;
+        }
+        #endregion
+        #region Class Event Handlers
+        private void State_TextChanged(object? sender, StateStringEventArgs e) {
+            if (AlertMessagesTSMI.Text == e.LastText || AlertMessagesTSMI.Text == e.NewText) {
+                AlertMessagesTSMI.Text = e.NewText;
+                AlertMessagesTSMI.ForeColor = SystemColors.ControlText;
+                AlertMessageTimer.Enabled = false;
+                AlertMessageTimer.Stop();
             }
-            if (!_drawing || BackgroundImage is null || _firstPoint is null)
-                return;
-            Point first = AdjustPointForScaling((Point)_firstPoint);
-            rect = new() {
-                Location = new() {
-                    X = Math.Min(first.X, second.X),
-                    Y = Math.Min(first.Y, second.Y)
-                },
-                Size = new() {
-                    Width = Math.Abs(first.X - second.X),
-                    Height = Math.Abs(first.Y - second.Y)
-                }
-            };
-            Debug.WriteLine($"RectX: {rect.Location.X}, RectY{rect.Location.Y}, RectWidth{rect.Size.Width}, RectHeight{rect.Size.Height}, RectLeft{rect.Left}, RectTop{rect.Top}, RectRight{rect.Right}, RectBottom{rect.Bottom}");
-            image = new(_floorPlanWithLocations);
-            using Graphics graphics = Graphics.FromImage(image);
-            pen = new(Color.Red) {
-                DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot,
-                Width = 2f
-            };
-            graphics.DrawRectangle(pen, rect);
-            BackgroundImage = image;
         }
         #endregion
         #region Control Event Handlers
+        private void AlertMessageTimer_Tick(object sender, EventArgs e) {
+            if (AlertMessagesTSMI.Text == "" || AlertMessagesTSMI.Text == _state.Text)
+                return;
+            AlertMessagesTSMI.Text = _state.Text;
+        }
+        private void AlertMessagesTSMI_TextChanged(object sender, EventArgs e) {
+            if (AlertMessagesTSMI.Text == _state.Text) {
+                AlertMessagesTSMI.ForeColor = SystemColors.ControlText;
+                AlertMessageTimer.Enabled = false;
+                AlertMessageTimer.Stop();
+            } else if (AlertMessagesTSMI.Text == "") {
+                AlertMessagesTSMI.Text = _state.Text;
+                AlertMessagesTSMI.ForeColor = SystemColors.ControlText;
+                AlertMessageTimer.Enabled = false;
+                AlertMessageTimer.Stop();
+            } else {
+                AlertMessagesTSMI.ForeColor = Color.Red;
+                AlertMessageTimer.Enabled = true;
+                AlertMessageTimer.Start();
+            }
+        }
+        private void CancelPendingActionToolStripMenuItem_Click(object sender, EventArgs e) {
+            CancelActionStates();
+        }
         private void ContextMenu_Opening(object sender, CancelEventArgs e) {
             Location? loc = _locationCollection.FindByPoint(_lastClick);
             if (loc is null) {
@@ -305,35 +432,71 @@ namespace DCManagement.Forms {
             if (result == "0")
                 _locationCollection.Remove(_lastClickLocation);
             else if (result == "Cascade")
-                MessageBox.Show("Cannot delete a location while teams are assigned to that location!");
-            _lastClickLocation = null;
-            _lastClick = new();
+                AlertMessagesTSMI.Text = "Cannot delete a location while teams are assigned to that location!";
+            CancelActionStates();
+            DrawLocations();
         }
         private void DrawNewLocationToolStripMenuItem_Click(object sender, EventArgs e) {
-            _drawing = true;
+            CancelActionStates();
+            CancelPendingActionToolStripMenuItem.Visible = true;
+            _actionAllowed = ActionAllowed.Drawing;
+            _state.Text = "Drawing new location";
         }
         private void MoveLocationToolStripMenuItem_Click(object sender, EventArgs e) {
             if (_lastClickLocation is null)
                 return;
-            _moving = true;
+            CancelActionStates(true);
+            _actionAllowed = ActionAllowed.Moving;
+            _actionState = ActionState.Moving;
+            CancelPendingActionToolStripMenuItem.Visible = true;
+            _state.Text = $"Moving Location: {_lastClickLocation.Name}";
             LocationCollection unaffected = _locationCollection.Clone();
             unaffected.Remove(_lastClickLocation);
             DrawLocations(unaffected);
+        }
+        private void NameEditTextbox_KeyUp(object sender, KeyEventArgs e) {
+            if (e.KeyCode == Keys.Escape)
+                CancelActionStates();
+            if (e.KeyCode != Keys.Enter)
+                return;
+            switch (_actionState) {
+                case ActionState.NamingNew:
+                    if (_pendingLocation is null) {
+                        CancelActionStates();
+                        return;
+                    }
+                    _pendingLocation.Name = NameEditTextbox.Text;
+                    break;
+                case ActionState.Renaming:
+                    if (_lastClickLocation is null) {
+                        CancelActionStates();
+                        return;
+                    }
+                    _lastClickLocation.Name = NameEditTextbox.Text;
+                    break;
+                default:
+                    CancelActionStates();
+                    return;
+            }
+            WriteNewLocation();
+            GetLocations();
+            DrawLocations();
+            CancelActionStates();
         }
         private void RenameLocationToolStripMenuItem_Click(object sender, EventArgs e) {
             if (_lastClickLocation is null)
                 return;
             _pendingLocation = null;
-            TextBox newName = new() {
-                Size = new(200, 20),
-                Location = new(_lastClickLocation.CenterLeft.X - 10, _lastClickLocation.CenterLeft.Y)
-            };
-            Debug.WriteLine($"Create pending loc name box @ {newName.Location.X},{newName.Location.Y}");
-            SuspendLayout();
-            Controls.Add(newName);
-            ResumeLayout();
-            newName.KeyDown += TextKeyDownHandler;
-            newName.Focus();
+            CancelActionStates(true);
+            CancelPendingActionToolStripMenuItem.Visible = true;
+            _actionState = ActionState.Renaming;
+            NameEditTextbox.Location = AdjustPointforScalingInverse(new(_lastClickLocation.CenterLeft.X - 10, _lastClickLocation.CenterLeft.Y));
+            NameEditTextbox.Text = "";
+            NameEditTextbox.Visible = true;
+            NameEditTextbox.BringToFront();
+            _state.Text = $"Renaming location: {_lastClickLocation.Name}";
+            Debug.WriteLine($"Create pending loc name box @ {NameEditTextbox.Location.X},{NameEditTextbox.Location.Y}");
+            NameEditTextbox.Focus();
             return;
         }
         private void SetClinicFloorplanToolStripMenuItem_Click(object sender, EventArgs e) {
@@ -361,27 +524,6 @@ namespace DCManagement.Forms {
             };
             cmd.Parameters.Add(dataParam);
             cmd.ExecuteNonQuery();
-            LoadFloorplan();
-        }
-        private void TextKeyDownHandler(object? sender, KeyEventArgs e) {
-            if (sender is null)
-                return;
-            if (sender is not TextBox)
-                return;
-            if (e.KeyCode != Keys.Enter)
-                return;
-            if (_pendingLocation is null)
-                return;
-            TextBox box = (TextBox)sender;
-            if (_pendingLocation is not null && _lastClickLocation is null)
-                _pendingLocation.Name = box.Text;
-            else if (_pendingLocation is null && _lastClickLocation is not null)
-                _lastClickLocation.Name = box.Text;
-            SuspendLayout();
-            Controls.Remove(box);
-            box.Dispose();
-            ResumeLayout();
-            WriteNewLocation();
             LoadFloorplan();
         }
         #endregion

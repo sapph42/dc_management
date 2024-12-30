@@ -14,19 +14,19 @@ namespace DCManagement.Classes {
                 throw new ArgumentException("Cannot add locations with duplicate IDs");
             Add(location.LocID, location);
         }
-        public bool Remove(Location location) {
-            if (ContainsValue(location))
-                return Remove(location.LocID);
-            else
-                return false;
-        }
         public LocationCollection Clone() {
             LocationCollection cloned = [];
             cloned.AddRangeUnsafe(this);
             return cloned;
         }
+        public new bool ContainsValue(Location location) {
+            foreach (var kvp in this) {
+                if (kvp.Value.Equals(location)) return true;
+            }
+            return false;
+        }
         public Location? FindByPoint(Point point) {
-            foreach (Location location in Values) { 
+            foreach (Location location in Values) {
                 if (location.IsPointInside(point)) return location;
             }
             return null;
@@ -43,5 +43,18 @@ namespace DCManagement.Classes {
                     return true;
             return false;
         }
+        public int? IntersectWithByID(Rectangle rect) {
+            foreach (Location location in Values)
+                if (location.IntersectsWith(rect))
+                    return location.LocID;
+            return null;
+        }
+        public bool Remove(Location location) {
+            if (ContainsValue(location))
+                return Remove(location.LocID);
+            else
+                return false;
+        }
+
     }
 }
