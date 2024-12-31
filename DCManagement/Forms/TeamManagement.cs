@@ -49,7 +49,7 @@ public partial class TeamManagement : Form {
         _locations = [];
         _locations.Add(new() {
             LocID = -1,
-            Name = "No Team Assigned"
+            Name = "No Location Assigned"
         });
         using SqlDataReader reader = cmd.ExecuteReader();
         object[] row = new object[6];

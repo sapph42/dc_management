@@ -29,6 +29,6 @@ internal static class Program {
         SqlConnectionString = csb.ConnectionString;
         conn = new(SqlConnectionString);
         ApplicationConfiguration.Initialize();
-        Application.Run(new TeamManagement());
+        Application.Run(new PersonManagement());
     }
 }
