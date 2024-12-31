@@ -2,7 +2,7 @@
 using System.Data;
 
 namespace DCManagement.Classes; 
-internal class Location {
+public class Location {
     public int LocID { get; set; }
     public string? Name { get; set; }
     public Point UpperLeft { get; set; }

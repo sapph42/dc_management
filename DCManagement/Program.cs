@@ -7,7 +7,12 @@ namespace DCManagement;
 internal static class Program {
 
     public static string SqlConnectionString = "";
-
+    public static SqlConnection conn = new();
+    public static void OpenConn() {
+        if (conn.State == System.Data.ConnectionState.Open)
+            return;
+        conn.Open();
+    }
     [STAThread]
     static void Main() {
         // To customize application configuration such as set high DPI settings or default font,
@@ -22,7 +27,7 @@ internal static class Program {
             CommandTimeout = 5
         };
         SqlConnectionString = csb.ConnectionString;
-
+        conn = new(SqlConnectionString);
         ApplicationConfiguration.Initialize();
         Application.Run(new TeamManagement());
     }

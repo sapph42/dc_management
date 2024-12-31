@@ -27,6 +27,8 @@
             TeamListbox = new ListBox();
             NewTeamButton = new Button();
             groupBox1 = new GroupBox();
+            SlotButton = new Button();
+            SaveButton = new Button();
             LocationCombobox = new ComboBox();
             LeadCombobox = new ComboBox();
             ActiveCheckbox = new CheckBox();
@@ -35,7 +37,6 @@
             label3 = new Label();
             TeamNameTextbox = new TextBox();
             label2 = new Label();
-            SaveButton = new Button();
             groupBox1.SuspendLayout();
             SuspendLayout();
             // 
@@ -70,6 +71,7 @@
             // 
             // groupBox1
             // 
+            groupBox1.Controls.Add(SlotButton);
             groupBox1.Controls.Add(SaveButton);
             groupBox1.Controls.Add(LocationCombobox);
             groupBox1.Controls.Add(LeadCombobox);
@@ -85,6 +87,26 @@
             groupBox1.TabIndex = 3;
             groupBox1.TabStop = false;
             groupBox1.Text = "Team Data";
+            // 
+            // SlotButton
+            // 
+            SlotButton.Location = new Point(301, 160);
+            SlotButton.Name = "SlotButton";
+            SlotButton.Size = new Size(115, 23);
+            SlotButton.TabIndex = 15;
+            SlotButton.Text = "Set Team Slots";
+            SlotButton.UseVisualStyleBackColor = true;
+            SlotButton.Click += SlotButton_Click;
+            // 
+            // SaveButton
+            // 
+            SaveButton.Location = new Point(236, 199);
+            SaveButton.Name = "SaveButton";
+            SaveButton.Size = new Size(75, 23);
+            SaveButton.TabIndex = 14;
+            SaveButton.Text = "Save Team";
+            SaveButton.UseVisualStyleBackColor = true;
+            SaveButton.Click += SaveButton_Click;
             // 
             // LocationCombobox
             // 
@@ -156,16 +178,6 @@
             label2.TabIndex = 0;
             label2.Text = "Team Name";
             // 
-            // SaveButton
-            // 
-            SaveButton.Location = new Point(301, 159);
-            SaveButton.Name = "SaveButton";
-            SaveButton.Size = new Size(75, 23);
-            SaveButton.TabIndex = 14;
-            SaveButton.Text = "Save Team";
-            SaveButton.UseVisualStyleBackColor = true;
-            SaveButton.Click += SaveButton_Click;
-            // 
             // TeamManagement
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -199,5 +211,6 @@
         private CheckBox ActiveCheckbox;
         private CheckBox FillCheckbox;
         private Button SaveButton;
+        private Button SlotButton;
     }
 }
