@@ -24,6 +24,6 @@ internal static class Program {
         SqlConnectionString = csb.ConnectionString;
 
         ApplicationConfiguration.Initialize();
-        Application.Run(new LocationManagement());
+        Application.Run(new TeamManagement());
     }
 }

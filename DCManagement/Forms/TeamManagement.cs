@@ -16,6 +16,10 @@ public partial class TeamManagement : Form {
     private readonly SqlConnection conn;
     private Dictionary<int, string> _teams = [];
     private LocationCollection _locations = [];
+    private PersonCollection _people = [];
+    private Team? _selectedTeam;
+    private bool _insert = false;
+    private bool _boxDirty = false;
     #endregion
     public TeamManagement() {
         conn = new(Program.SqlConnectionString);
@@ -59,27 +63,143 @@ public partial class TeamManagement : Form {
         }
         reader.Close();
     }
+    private void GetPeople() {
+        ConnOpen();
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.CommandText = "dbo.GetPeople";
+        cmd.Connection = conn;
+        _people = [];
+        _people.Add(new() {
+            PersonID = -1,
+            NameOverride = "No Team Lead"
+        });
+        using SqlDataReader reader = cmd.ExecuteReader();
+        object[] row = new object[7];
+        while (reader.Read()) {
+            _ = reader.GetValues(row);
+            _people.Add(new Person(row));
+        }
+        reader.Close();
+    }
+    private void LoadTeamInfo(int teamID) {
+        ConnOpen();
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = @"SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active FROM dbo.GetTeamInfo(@TeamID)";
+        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
+        cmd.Parameters["@TeamID"].Value = teamID;
+        cmd.Connection = conn;
+        using SqlDataReader reader = cmd.ExecuteReader();
+        object[] row = new object[6];
+        while (reader.Read()) {
+            _ = reader.GetValues(row);
+            _selectedTeam = new Team(row);
+        }
+        reader.Close();
+    }
+    private void AddNewTeam() {
+        ConnOpen();
+        using SqlCommand cmd = new();
+        cmd.Connection = conn;
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.CommandText = "dbo.InsertTeam";
+        cmd.Parameters.Add("@Name", SqlDbType.VarChar);
+        cmd.Parameters.Add("@Lead", SqlDbType.Int);
+        cmd.Parameters.Add("@LocID", SqlDbType.Int);
+        cmd.Parameters.Add("@Fill", SqlDbType.Bit);
+        cmd.Parameters.Add("@Active", SqlDbType.Bit);
+        cmd.Parameters["@Name"].Value = TeamNameTextbox.Text;
+        cmd.Parameters["@Lead"].Value = LeadCombobox.SelectedValue;
+        cmd.Parameters["@LocID"].Value = LocationCombobox.SelectedValue;
+        cmd.Parameters["@Fill"].Value = FillCheckbox.Checked ? 1 : 0;
+        cmd.Parameters["@Active"].Value = ActiveCheckbox.Checked ? 1 : 0;
+        int newTeam = (int)cmd.ExecuteScalar();
+        _insert = false;
+        RefreshBox(newTeam);
+    }
+    private void UpdateTeam() {
+        if (_selectedTeam is null)
+            return;
+        ConnOpen();
+        using SqlCommand cmd = new();
+        cmd.Connection = conn;
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.CommandText = "dbo.UpdateTeam";
+        cmd.Parameters.AddRange(_selectedTeam.GetSqlParameters());
+        _ = cmd.ExecuteScalar();
+        if (_boxDirty)
+            RefreshBox(_selectedTeam.TeamID);
+    }
     #endregion
-    private void RefreshBox() {
+    private void RefreshBox(int? selectedValue = null) {
+        LoadTeams();
+        if (_teams.Count == 0)
+            return;
+        _boxDirty = false;
         TeamListbox.DataSource = new BindingSource(_teams, null);
         TeamListbox.DisplayMember = "Value";
         TeamListbox.ValueMember = "Key";
+        TeamListbox.Refresh();
+        if (selectedValue != null) {
+            TeamListbox.SelectedValue = selectedValue;
+        }
     }
     #endregion
     #region Form Event Handlers
     private void TeamManagement_Load(object sender, EventArgs e) {
-        LoadTeams();
-        if (_teams.Count > 0)
-            RefreshBox();
         GetLocations();
-        LocationCombobox.DataSource = new BindingSource(_locations, null);
-        LocationCombobox.DisplayMember = "Value.Name";
+        GetPeople();
+        LocationCombobox.DataSource = new BindingSource(_locations.ListboxDatasource, null);
+        LocationCombobox.DisplayMember = "Value";
         LocationCombobox.ValueMember = "Key";
+        LocationCombobox.BindingContext = new();
+        LeadCombobox.DataSource = new BindingSource(_people.ListboxDatasource, null);
+        LeadCombobox.DisplayMember = "Value";
+        LeadCombobox.ValueMember = "Key";
+        LeadCombobox.BindingContext = new();
+        RefreshBox();
     }
     #endregion
     #region Control Event Handlers
+    private void NewTeamButton_Click(object sender, EventArgs e) {
+        _selectedTeam = null;
+        TeamNameTextbox.Text = "";
+        LocationCombobox.SelectedValue = -1;
+        LeadCombobox.SelectedValue = -1;
+        FillCheckbox.Checked = true;
+        ActiveCheckbox.Checked = true;
+        _insert = true;
+    }
+    private void SaveButton_Click(object sender, EventArgs e) {
+        if (_insert)
+            AddNewTeam();
+        else {
+            if (_selectedTeam is null)
+                return;
+            _selectedTeam.TeamName = TeamNameTextbox.Text;
+            _selectedTeam.LocationID = (int?)LocationCombobox.SelectedValue ?? -1;
+            _selectedTeam.TeamLeadID = (int?)LeadCombobox.SelectedValue ?? -1;
+            _selectedTeam.FillIfNoLead = FillCheckbox.Checked;
+            _selectedTeam.Active = ActiveCheckbox.Checked;
+            if (_selectedTeam.TeamName != TeamListbox.GetItemText(TeamListbox.SelectedItem))
+                _boxDirty = true;
+            if (!ActiveCheckbox.Checked)
+                _boxDirty = true;
+            UpdateTeam();
+        }
+    }
     private void TeamListbox_SelectedIndexChanged(object sender, EventArgs e) {
-        int teamID = (int)TeamListbox.Items[TeamListbox.SelectedIndex];
+        int teamID = ((KeyValuePair<int, string>)TeamListbox.Items[TeamListbox.SelectedIndex]).Key;
+        LoadTeamInfo(teamID);
+        if (_selectedTeam is null)
+            return;
+        TeamNameTextbox.Text = _selectedTeam.TeamName;
+        LocationCombobox.SelectedValue = _selectedTeam.LocationID;
+        LeadCombobox.SelectedValue = _selectedTeam.TeamLeadID;
+        FillCheckbox.Checked = _selectedTeam.FillIfNoLead;
+        ActiveCheckbox.Checked = _selectedTeam.Active;
+        _insert = false;
     }
     #endregion
 }
