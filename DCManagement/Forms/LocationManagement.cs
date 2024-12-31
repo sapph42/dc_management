@@ -19,7 +19,7 @@ namespace DCManagement.Forms {
             Drawing
         }
         #region Fields
-        private readonly SqlConnection conn;
+    
         private ActionState _actionState;
         private ActionAllowed _actionAllowed;
         private Point _lastClick;
@@ -33,21 +33,17 @@ namespace DCManagement.Forms {
         private readonly StateString _state = new();
         #endregion
         public LocationManagement() {
-            conn = new(Program.SqlConnectionString);
+            Program.conn = new(Program.SqlConnectionString);
             InitializeComponent();
         }
         #region Internal Helper Functions
         #region Database Interaction
-        private void ConnOpen() {
-            if (conn.State != ConnectionState.Open)
-                conn.Open();
-        }
         private void LoadFloorplan() {
-            ConnOpen();
+            Program.OpenConn();
             using SqlCommand cmd = new();
             cmd.CommandType = CommandType.Text;
             cmd.CommandText = @"SELECT TOP (1) Image FROM Floorplan";
-            cmd.Connection = conn;
+            cmd.Connection = Program.conn;
             Image? floorplan = null;
             using SqlDataReader reader = cmd.ExecuteReader();
             if (reader.Read())
@@ -68,11 +64,11 @@ namespace DCManagement.Forms {
             DrawLocations();
         }
         private void GetLocations() {
-            ConnOpen();
+            Program.OpenConn();
             using SqlCommand cmd = new();
             cmd.CommandType = CommandType.Text;
             cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location";
-            cmd.Connection = conn;
+            cmd.Connection = Program.conn;
             _locationCollection = [];
             using SqlDataReader reader = cmd.ExecuteReader();
             object[] row = new object[6];
@@ -88,9 +84,9 @@ namespace DCManagement.Forms {
                 case ActionState.Drawing:
                     if (_pendingLocation is null)
                         return;
-                    ConnOpen();
+                    Program.OpenConn();
                     using (SqlCommand cmd = new()) {
-                        cmd.Connection = conn;
+                        cmd.Connection = Program.conn;
                         cmd.CommandType = CommandType.StoredProcedure;
                         cmd.CommandText = "dbo.InsertLocation";
                         cmd.Parameters.AddRange(_pendingLocation.GetSqlParameters());
@@ -103,9 +99,9 @@ namespace DCManagement.Forms {
                 case ActionState.Renaming:
                     if (_lastClickLocation is null)
                         return;
-                    ConnOpen();
+                    Program.OpenConn();
                     using (SqlCommand cmd = new()) {
-                        cmd.Connection = conn;
+                        cmd.Connection = Program.conn;
                         cmd.CommandType = CommandType.StoredProcedure;
                         cmd.CommandText = "dbo.UpdateLocation";
                         cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
@@ -186,8 +182,8 @@ namespace DCManagement.Forms {
             CancelActionStates();
         }
         private void LocationManagement_FormClosing(object sender, FormClosingEventArgs e) {
-            conn.Close();
-            conn.Dispose();
+            Program.conn.Close();
+            Program.conn.Dispose();
         }
         private void LocationManagement_MouseDown(object sender, MouseEventArgs e) {
             _lastClick = AdjustPointForScaling(e.Location);
@@ -422,9 +418,9 @@ namespace DCManagement.Forms {
         private void DeleteLocationToolStripMenuItem_Click(object sender, EventArgs e) {
             if (_lastClickLocation is null)
                 return;
-            ConnOpen();
+            Program.OpenConn();
             using SqlCommand cmd = new();
-            cmd.Connection = conn;
+            cmd.Connection = Program.conn;
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.CommandText = "dbo.DeleteLocation";
             cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
@@ -509,12 +505,12 @@ namespace DCManagement.Forms {
             };
             if (picker.ShowDialog() != DialogResult.OK || !File.Exists(picker.FileName))
                 return;
-            ConnOpen();
+            Program.OpenConn();
             using SqlCommand cmd = new();
             using FileStream file = File.OpenRead(picker.FileName);
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.CommandText = "dbo.UpdateFloorplan";
-            cmd.Connection = conn;
+            cmd.Connection = Program.conn;
             SqlParameter dataParam = new() {
                 Direction = ParameterDirection.Input,
                 ParameterName = "@data",

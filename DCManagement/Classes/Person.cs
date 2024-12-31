@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DCManagement.Classes; 
-internal class Person {
+public class Person {
     private int? _teamID;
     private Team? _team;
     public int PersonID { get; set; }
@@ -23,7 +23,7 @@ internal class Person {
             return Team?.TeamID ?? _teamID ?? -1;
         }
     }
-    public SkillFlag SkillFlag { get; set; } = new();
+    public EntitySlots Skills { get; set; } = new();
     public bool IsActive { get; set; } = true;
     public bool IsAvailable { get; set; } = true;
     public string? NameOverride { get; set; }
@@ -40,7 +40,6 @@ internal class Person {
         LastName = (string)values[1];
         FirstName = (string)values[2];
         _teamID = values[3] == DBNull.Value ? null : (int)values[3];
-        SkillFlag.SetValue((uint)values[4]);
         IsActive = (int)values[5] == 1;
         IsAvailable = (int)values[6] == 1;
     }
@@ -50,10 +49,13 @@ internal class Person {
             LastName = LastName,
             FirstName = FirstName,
             Team = Team,
-            SkillFlag = SkillFlag,
+            Skills = Skills,
             IsActive = IsActive,
             IsAvailable = IsAvailable
         };
         return clone;
+    }
+    public void SetSkills(IEnumerable<Slot> values) {
+        Skills.AddRange(values);
     }
 }

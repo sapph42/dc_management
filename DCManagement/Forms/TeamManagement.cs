@@ -13,7 +13,7 @@ using System.Windows.Forms;
 namespace DCManagement.Forms;
 public partial class TeamManagement : Form {
     #region Fields
-    private readonly SqlConnection conn;
+
     private Dictionary<int, string> _teams = [];
     private LocationCollection _locations = [];
     private PersonCollection _people = [];
@@ -22,21 +22,17 @@ public partial class TeamManagement : Form {
     private bool _boxDirty = false;
     #endregion
     public TeamManagement() {
-        conn = new(Program.SqlConnectionString);
+        Program.conn = new(Program.SqlConnectionString);
         InitializeComponent();
     }
     #region Internal Helper Functions
     #region Database Interaction
-    private void ConnOpen() {
-        if (conn.State != ConnectionState.Open)
-            conn.Open();
-    }
     private void LoadTeams() {
-        ConnOpen();
+        Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = @"dbo.GetTeams";
-        cmd.Connection = conn;
+        cmd.Connection = Program.conn;
         using SqlDataReader reader = cmd.ExecuteReader();
         _teams = [];
         if (reader.Read()) {
@@ -45,11 +41,11 @@ public partial class TeamManagement : Form {
         reader.Close();
     }
     private void GetLocations() {
-        ConnOpen();
+        Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location";
-        cmd.Connection = conn;
+        cmd.Connection = Program.conn;
         _locations = [];
         _locations.Add(new() {
             LocID = -1,
@@ -64,11 +60,11 @@ public partial class TeamManagement : Form {
         reader.Close();
     }
     private void GetPeople() {
-        ConnOpen();
+        Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetPeople";
-        cmd.Connection = conn;
+        cmd.Connection = Program.conn;
         _people = [];
         _people.Add(new() {
             PersonID = -1,
@@ -83,13 +79,13 @@ public partial class TeamManagement : Form {
         reader.Close();
     }
     private void LoadTeamInfo(int teamID) {
-        ConnOpen();
+        Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active FROM dbo.GetTeamInfo(@TeamID)";
         cmd.Parameters.Add("@TeamID", SqlDbType.Int);
         cmd.Parameters["@TeamID"].Value = teamID;
-        cmd.Connection = conn;
+        cmd.Connection = Program.conn;
         using SqlDataReader reader = cmd.ExecuteReader();
         object[] row = new object[6];
         while (reader.Read()) {
@@ -99,9 +95,9 @@ public partial class TeamManagement : Form {
         reader.Close();
     }
     private void AddNewTeam() {
-        ConnOpen();
+        Program.OpenConn();
         using SqlCommand cmd = new();
-        cmd.Connection = conn;
+        cmd.Connection = Program.conn;
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertTeam";
         cmd.Parameters.Add("@Name", SqlDbType.VarChar);
@@ -121,9 +117,9 @@ public partial class TeamManagement : Form {
     private void UpdateTeam() {
         if (_selectedTeam is null)
             return;
-        ConnOpen();
+        Program.OpenConn();
         using SqlCommand cmd = new();
-        cmd.Connection = conn;
+        cmd.Connection = Program.conn;
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdateTeam";
         cmd.Parameters.AddRange(_selectedTeam.GetSqlParameters());
@@ -169,6 +165,7 @@ public partial class TeamManagement : Form {
         LeadCombobox.SelectedValue = -1;
         FillCheckbox.Checked = true;
         ActiveCheckbox.Checked = true;
+        SlotButton.Enabled = false;
         _insert = true;
     }
     private void SaveButton_Click(object sender, EventArgs e) {
@@ -188,6 +185,13 @@ public partial class TeamManagement : Form {
                 _boxDirty = true;
             UpdateTeam();
         }
+        SlotButton.Enabled = true;
+    }
+    private void SlotButton_Click(object sender, EventArgs e) {
+        if (_selectedTeam is null)
+            return;
+        SlotAssignment slotAssignment = new(_selectedTeam);
+        slotAssignment.ShowDialog();
     }
     private void TeamListbox_SelectedIndexChanged(object sender, EventArgs e) {
         int teamID = ((KeyValuePair<int, string>)TeamListbox.Items[TeamListbox.SelectedIndex]).Key;

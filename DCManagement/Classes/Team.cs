@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DCManagement.Classes; 
-internal class Team {
+public class Team {
     private int? _teamLead;
     private int? _primaryLoc;
     public int? TeamID { get; set; }
@@ -33,6 +33,7 @@ internal class Team {
     public bool Active { get; set; } = true;
     public string TeamName { get; set; }
     public Location? CurrentAssignment { get; set; }
+    public EntitySlots Slots { get; set; } = [];
     public Team() {
         TeamName = string.Empty;
     }
