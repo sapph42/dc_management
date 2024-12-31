@@ -27,14 +27,15 @@
             TeamListbox = new ListBox();
             NewTeamButton = new Button();
             groupBox1 = new GroupBox();
+            LocationCombobox = new ComboBox();
+            LeadCombobox = new ComboBox();
+            ActiveCheckbox = new CheckBox();
+            FillCheckbox = new CheckBox();
+            label4 = new Label();
+            label3 = new Label();
             TeamNameTextbox = new TextBox();
             label2 = new Label();
-            label3 = new Label();
-            label4 = new Label();
-            FillCheckbox = new CheckBox();
-            ActiveCheckbox = new CheckBox();
-            LeadCombobox = new ComboBox();
-            LocationCombobox = new ComboBox();
+            SaveButton = new Button();
             groupBox1.SuspendLayout();
             SuspendLayout();
             // 
@@ -65,9 +66,11 @@
             NewTeamButton.TabIndex = 2;
             NewTeamButton.Text = "New Team";
             NewTeamButton.UseVisualStyleBackColor = true;
+            NewTeamButton.Click += NewTeamButton_Click;
             // 
             // groupBox1
             // 
+            groupBox1.Controls.Add(SaveButton);
             groupBox1.Controls.Add(LocationCombobox);
             groupBox1.Controls.Add(LeadCombobox);
             groupBox1.Controls.Add(ActiveCheckbox);
@@ -82,6 +85,60 @@
             groupBox1.TabIndex = 3;
             groupBox1.TabStop = false;
             groupBox1.Text = "Team Data";
+            // 
+            // LocationCombobox
+            // 
+            LocationCombobox.FormattingEnabled = true;
+            LocationCombobox.Location = new Point(109, 160);
+            LocationCombobox.Name = "LocationCombobox";
+            LocationCombobox.Size = new Size(166, 23);
+            LocationCombobox.TabIndex = 13;
+            // 
+            // LeadCombobox
+            // 
+            LeadCombobox.FormattingEnabled = true;
+            LeadCombobox.Location = new Point(109, 94);
+            LeadCombobox.Name = "LeadCombobox";
+            LeadCombobox.Size = new Size(166, 23);
+            LeadCombobox.TabIndex = 12;
+            // 
+            // ActiveCheckbox
+            // 
+            ActiveCheckbox.AutoSize = true;
+            ActiveCheckbox.Location = new Point(301, 90);
+            ActiveCheckbox.Name = "ActiveCheckbox";
+            ActiveCheckbox.Size = new Size(59, 19);
+            ActiveCheckbox.TabIndex = 11;
+            ActiveCheckbox.Text = "Active";
+            ActiveCheckbox.UseVisualStyleBackColor = true;
+            // 
+            // FillCheckbox
+            // 
+            FillCheckbox.AutoSize = true;
+            FillCheckbox.Location = new Point(301, 22);
+            FillCheckbox.Name = "FillCheckbox";
+            FillCheckbox.Size = new Size(172, 19);
+            FillCheckbox.TabIndex = 10;
+            FillCheckbox.Text = "Fill If No Lead/Lead Missing";
+            FillCheckbox.UseVisualStyleBackColor = true;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Location = new Point(6, 163);
+            label4.Name = "label4";
+            label4.Size = new Size(97, 15);
+            label4.TabIndex = 4;
+            label4.Text = "Primary Location";
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new Point(6, 94);
+            label3.Name = "label3";
+            label3.Size = new Size(63, 15);
+            label3.TabIndex = 2;
+            label3.Text = "Team Lead";
             // 
             // TeamNameTextbox
             // 
@@ -99,59 +156,15 @@
             label2.TabIndex = 0;
             label2.Text = "Team Name";
             // 
-            // label3
+            // SaveButton
             // 
-            label3.AutoSize = true;
-            label3.Location = new Point(6, 94);
-            label3.Name = "label3";
-            label3.Size = new Size(63, 15);
-            label3.TabIndex = 2;
-            label3.Text = "Team Lead";
-            // 
-            // label4
-            // 
-            label4.AutoSize = true;
-            label4.Location = new Point(6, 163);
-            label4.Name = "label4";
-            label4.Size = new Size(97, 15);
-            label4.TabIndex = 4;
-            label4.Text = "Primary Location";
-            // 
-            // FillCheckbox
-            // 
-            FillCheckbox.AutoSize = true;
-            FillCheckbox.Location = new Point(301, 22);
-            FillCheckbox.Name = "FillCheckbox";
-            FillCheckbox.Size = new Size(172, 19);
-            FillCheckbox.TabIndex = 10;
-            FillCheckbox.Text = "Fill If No Lead/Lead Missing";
-            FillCheckbox.UseVisualStyleBackColor = true;
-            // 
-            // ActiveCheckbox
-            // 
-            ActiveCheckbox.AutoSize = true;
-            ActiveCheckbox.Location = new Point(301, 90);
-            ActiveCheckbox.Name = "ActiveCheckbox";
-            ActiveCheckbox.Size = new Size(59, 19);
-            ActiveCheckbox.TabIndex = 11;
-            ActiveCheckbox.Text = "Active";
-            ActiveCheckbox.UseVisualStyleBackColor = true;
-            // 
-            // LeadCombobox
-            // 
-            LeadCombobox.FormattingEnabled = true;
-            LeadCombobox.Location = new Point(109, 94);
-            LeadCombobox.Name = "LeadCombobox";
-            LeadCombobox.Size = new Size(166, 23);
-            LeadCombobox.TabIndex = 12;
-            // 
-            // LocationCombobox
-            // 
-            LocationCombobox.FormattingEnabled = true;
-            LocationCombobox.Location = new Point(109, 160);
-            LocationCombobox.Name = "LocationCombobox";
-            LocationCombobox.Size = new Size(166, 23);
-            LocationCombobox.TabIndex = 13;
+            SaveButton.Location = new Point(301, 159);
+            SaveButton.Name = "SaveButton";
+            SaveButton.Size = new Size(75, 23);
+            SaveButton.TabIndex = 14;
+            SaveButton.Text = "Save Team";
+            SaveButton.UseVisualStyleBackColor = true;
+            SaveButton.Click += SaveButton_Click;
             // 
             // TeamManagement
             // 
@@ -185,5 +198,6 @@
         private ComboBox LeadCombobox;
         private CheckBox ActiveCheckbox;
         private CheckBox FillCheckbox;
+        private Button SaveButton;
     }
 }
