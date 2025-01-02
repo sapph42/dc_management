@@ -13,14 +13,11 @@ public partial class SlotAssignment : Form {
     private bool _rowLeaving = false;
     #endregion
     #region Properties
-    public EntitySlots Slots;
+    public TeamSlots Slots = [];
     #endregion
     public SlotAssignment(Team team) {
         InitializeComponent();
         _team = team;
-        Slots = new() {
-            EntityID = (int)_team.TeamID!
-        };
         FormLabel.Text = $"Slot Assignment for Team {team.TeamName}";
         Program.conn = new(Program.SqlConnectionString);
     }
@@ -96,7 +93,7 @@ public partial class SlotAssignment : Form {
         cmd.Connection = Program.conn;
         return cmd.ExecuteNonQuery();
     }
-    private bool DeleteSlot(int slotID) {
+    private static bool DeleteSlot(int slotID) {
         Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
