@@ -33,7 +33,7 @@ public class Team {
     public bool Active { get; set; } = true;
     public string TeamName { get; set; }
     public Location? CurrentAssignment { get; set; }
-    public EntitySlots Slots { get; set; } = [];
+    public TeamSlots Slots { get; set; } = [];
     public Team() {
         TeamName = string.Empty;
     }

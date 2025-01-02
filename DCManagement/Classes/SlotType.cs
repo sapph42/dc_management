@@ -13,6 +13,11 @@ public class SlotType {
         Description = desc;
         SlotColor = color;
     }
+    public SlotType(int id, string desc, string color) {
+        SlotTypeID = id;
+        Description = desc;
+        SlotColor = ColorTranslator.FromHtml(color); 
+    }
     public void SetSlotColor (string ColorHex) {
         SlotColor = ColorTranslator.FromHtml (ColorHex);
     }
