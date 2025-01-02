@@ -95,6 +95,7 @@
             SaveButton.TabIndex = 8;
             SaveButton.Text = "Save Person";
             SaveButton.UseVisualStyleBackColor = true;
+            SaveButton.Click += SaveButton_Click;
             // 
             // AvailableCheckbox
             // 

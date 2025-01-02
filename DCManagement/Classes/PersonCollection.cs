@@ -12,10 +12,13 @@ internal class PersonCollection : Dictionary<int, Person> {
         }
     }
     public void Add(Person person) {
-        if (ContainsKey(person.PersonID))
+        if (person.PersonID is null)
+            return;
+        int personID = (int)person.PersonID;
+        if (ContainsKey(personID))
             throw new ArgumentException("Cannot add locations with duplicate IDs");
-        Add(person.PersonID, person);
-        _idsAndNames.Add(person.PersonID, person.FullName);
+        Add(personID, person);
+        _idsAndNames.Add(personID, person.FullName);
     }
     public PersonCollection Clone() {
         PersonCollection cloned = [];
@@ -35,8 +38,11 @@ internal class PersonCollection : Dictionary<int, Person> {
         return false;
     }
     public bool Remove(Person person) {
+        if (person.PersonID is null)
+            return false;
+        int personID = (int)person.PersonID;
         if (ContainsValue(person)){
-            return Remove(person.PersonID) && _idsAndNames.Remove(person.PersonID);
+            return Remove(personID) && _idsAndNames.Remove(personID);
         }
         else
             return false;
