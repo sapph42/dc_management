@@ -1,16 +1,6 @@
 ﻿using DCManagement.Classes;
 using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
-using static System.Reflection.Metadata.BlobBuilder;
 
 namespace DCManagement.Forms {
     public partial class DailyAssignment : Form {
@@ -21,8 +11,20 @@ namespace DCManagement.Forms {
             TeamID = 9999
         };
         private AvailablePeople _availablePeople = new();
+        private Floorplan _floorplan;
+        private Size _maxSize;
         public DailyAssignment() {
             InitializeComponent();
+            _floorplan = new Floorplan() {
+                Locations = LocationCollection.GetLocations(),
+            };
+            _maxSize = new() {
+                Height = ClientSize.Height,
+                Width = ClientSize.Width
+            };
+            _floorplan.LoadFloorplan();
+            ResizeForm();
+            BackgroundImage = _floorplan.ImageWithLocations;
         }
         private List<Person> GetDefaultSlotAssignments(int TeamID, int SlotTypeID) {
             Program.OpenConn();
@@ -188,6 +190,28 @@ namespace DCManagement.Forms {
                 thisPerson.Team = _float;
                 _availablePeople.People.Add(thisPerson);
             }
+        }
+        private void ResizeForm() {
+            Size imageSize = _floorplan.ImageSize;
+            float aspectRatio = (float)imageSize.Width / (float)imageSize.Height;
+            if (imageSize.Width <= _maxSize.Width && imageSize.Height <= _maxSize.Height) {
+                Size = imageSize;
+                BackgroundImageLayout = ImageLayout.Center;
+            } else {
+                if (aspectRatio >= 1) {
+                    Size = new Size() {
+                        Width = _maxSize.Width,
+                        Height = (int)(_maxSize.Width / aspectRatio)
+                    };
+                } else {
+                    Size = new Size() {
+                        Width = (int)(_maxSize.Height * aspectRatio),
+                        Height = _maxSize.Height
+                    };
+                }
+                BackgroundImageLayout = ImageLayout.Stretch;
+            }
+            _floorplan.ClientSize = this.ClientSize;
         }
         private void FillGoalSlots(int SkillID) {
             //First try and fill all teams to goal staffing from float
