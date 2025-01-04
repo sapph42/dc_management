@@ -13,7 +13,7 @@ using System.Windows.Forms;
 namespace DCManagement.Forms;
 public partial class PersonManagement : Form {
     private PersonCollection _people = [];
-    private readonly List<SlotType> _slotTypes = [];
+    private readonly List<Skill> _slotTypes = [];
     private Dictionary<int, string> _teams = [];
     private bool _inserting = false;
     private Person? _selectedPerson;
@@ -51,8 +51,8 @@ public partial class PersonManagement : Form {
         cmd.Parameters.Add("@SkillID", SqlDbType.Int);
         cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
         cmd.Parameters["@PersonID"].Value = newPerson.PersonID;
-        foreach (SlotType st in _slotTypes) {
-            cmd.Parameters["@SkillID"].Value = st.SlotTypeID;
+        foreach (Skill st in _slotTypes) {
+            cmd.Parameters["@SkillID"].Value = st.SkillID;
             cmd.Parameters["@IsSet"].Value = newPerson.Skills.Contains(st);
             _ = cmd.ExecuteNonQuery();
         }
@@ -83,7 +83,7 @@ public partial class PersonManagement : Form {
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read()) {
             _slotTypes.Add(new() {
-                SlotTypeID = reader.GetInt32(0),
+                SkillID = reader.GetInt32(0),
                 Description = reader.GetString(1),
                 SlotColor = ColorTranslator.FromHtml(reader.GetString(2))
             });
@@ -110,8 +110,8 @@ public partial class PersonManagement : Form {
             return;
         foreach (DataRow row in skills.Rows) {
             if (row[0] is null || row[1] is null) continue;
-            SlotType newSkill = new() {
-                SlotTypeID = (int)row[0],
+            Skill newSkill = new() {
+                SkillID = (int)row[0],
                 Description = (string)row[1]
             };
             if (row[2] is not null)
@@ -162,8 +162,8 @@ public partial class PersonManagement : Form {
         cmd.Parameters.Add("@SkillID", SqlDbType.Int);
         cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
         cmd.Parameters["@PersonID"].Value = _selectedPerson.PersonID;
-        foreach (SlotType st in _slotTypes) {
-            cmd.Parameters["@SkillID"].Value = st.SlotTypeID;
+        foreach (Skill st in _slotTypes) {
+            cmd.Parameters["@SkillID"].Value = st.SkillID;
             cmd.Parameters["@IsSet"].Value = _selectedPerson.Skills.Contains(st);
             _ = cmd.ExecuteNonQuery();
         }
@@ -198,7 +198,7 @@ public partial class PersonManagement : Form {
         AvailableCheckbox.Checked = _selectedPerson.IsAvailable;
         SkillsListbox.ClearSelected();
         for (int i = 0; i < SkillsListbox?.Items.Count; i++) {
-            if (_selectedPerson.Skills.Any(s => s.SlotTypeID == ((SlotType?)SkillsListbox?.Items[i])?.SlotTypeID))
+            if (_selectedPerson.Skills.Any(s => s.SkillID == ((Skill?)SkillsListbox?.Items[i])?.SkillID))
                 SkillsListbox.SetItemChecked(i, true);
             else
                 SkillsListbox.SetItemChecked(i, false);

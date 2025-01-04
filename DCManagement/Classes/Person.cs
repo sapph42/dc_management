@@ -25,7 +25,7 @@ public class Person {
             return Team?.TeamID ?? _teamID ?? -1;
         }
     }
-    public List<SlotType> Skills { get; set; } = [];
+    public List<Skill> Skills { get; set; } = [];
     public bool IsActive { get; set; } = true;
     public bool IsAvailable { get; set; } = true;
     public string? NameOverride { get; set; }
@@ -46,7 +46,7 @@ public class Person {
         IsActive = (bool)values[4];
         IsAvailable = (bool)values[5] ;
     }
-    public void AddSkill(SlotType value) {
+    public void AddSkill(Skill value) {
         if (Skills.Contains(value))
             return;
         Skills.Add(value);
@@ -65,7 +65,7 @@ public class Person {
     }
     public List<int> GetSkillIDs() {
         if (Skills.Count > 0)
-            return Skills.Select(s => s.SlotTypeID).ToList();
+            return Skills.Select(s => s.SkillID).ToList();
         return [];
     }
     public SqlParameter[] GetSqlParameters() {
@@ -102,7 +102,10 @@ public class Person {
         };
         return coll;
     }
-    public void SetSkills(IEnumerable<SlotType> values) {
+    public bool HasSkill(int SkillTypeID) {
+        return GetSkillIDs().Contains(SkillTypeID);
+    }
+    public void SetSkills(IEnumerable<Skill> values) {
         Skills.Clear();
         Skills.AddRange(values);
     }

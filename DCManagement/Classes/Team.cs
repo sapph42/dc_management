@@ -48,6 +48,16 @@ public class Team {
         FillIfNoLead = (bool)values[4];
         Active = (bool)values[5];
     }
+    public void AssignPerson(Person person, int skillID) {
+        if (person.AssignmentLocked)
+            return;
+        person.Team = this;
+        Slots
+            .Where(s => s.SkillID == skillID)
+            .First()
+            .Assigned
+            .Add(person);
+    }
     public SqlParameter[] GetSqlParameters() {
         var coll = new SqlParameter[6];
         coll[0] = new SqlParameter() {
@@ -81,5 +91,47 @@ public class Team {
             Value = Active
         };
         return coll;
+    }
+    public bool HasAvailablePersonnel(bool targetGoal = false) {
+        if (targetGoal) 
+            return Slots.Any(s => s.HasAvailableForGoal);
+        return Slots.Any(s => s.HasAvailable);
+    }
+    public bool HasAvailablePersonnelBySkill(int SkillTypeID) {
+        return Slots.Where(s => s.SkillID == SkillTypeID && s.HasAvailable).Any();
+    }
+    public bool HasGoalStaffing() {
+        return Slots.All(s => s.HasGoal);
+    }
+    public bool HasGoalStaffingBySkill(int SKillTypeID) {
+        return Slots.Where(s => s.SkillID == SKillTypeID && s.HasGoal).Any();
+    }
+    public bool HasMinimumStaffing() {
+        return Slots.All(s => s.HasMinimum);
+    }
+    public bool HasMinimumStaffingBySkill(int SkillTypeID) {
+        return Slots.Where(s => s.SkillID == SkillTypeID && s.HasMinimum).Any();
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>The highest priority SlotTypeID among SlotSkills that are below minimum </returns>
+    public int? HighestPriorityNeed() {
+        return Slots
+            .Where(s => !s.HasMinimum)?
+            .MaxBy(s => s.Priority)?
+            .SkillID;
+    }
+    public void ReassignPerson(Person person, Team newTeam, int skillID) {
+        if (person.AssignmentLocked)
+            return;
+        person.Team = newTeam;
+        Slots.RemovePerson(person);
+        newTeam
+            .Slots
+            .Where(s => s.SkillID == skillID)
+            .First()
+            .Assigned
+            .Add(person);
     }
 }

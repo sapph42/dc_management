@@ -12,9 +12,33 @@ public class TeamSlots : List<Slot> {
     }
     public int[] AvailableSlots {
         get {
-            return this.Where(ts => ts.HasAvailable).Select(ts => ts.SlotSkill.SlotTypeID).ToArray();
+            return this.Where(ts => ts.HasAvailable).Select(ts => ts.SkillID).ToArray();
         }
     }
+    public int[] AvailableSlotsForGoal {
+        get {
+            return this.Where(ts => ts.HasGoal).Select(ts => ts.SkillID).ToArray();
+        }
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>A List of int, int KeyValuePairs. The list consists of slots that are not at or above goal staffing. The values are the SlotTypeID, and the amount by which the slot is below minimum</returns>
+    public List<KeyValuePair<int, int>> GoalNeeded() {
+        if (AtGoal)
+            return [];
+        List<KeyValuePair<int, int>> returnData = [];
+        foreach (Slot slot in this) {
+            if (slot.HasGoal)
+                continue;
+            returnData.Add(new KeyValuePair<int, int>(slot.SkillID, slot.UnderGoal));
+        }
+        return returnData;
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>A List of int, int KeyValuePairs. The list consists of slots that are not at or above minimum staffing. The values are the SlotTypeID, and the amount by which the slot is below minimum</returns>
     public List<KeyValuePair<int, int>> MinimumNeeded() {
         if (AtMinimum)
             return [];
@@ -22,12 +46,21 @@ public class TeamSlots : List<Slot> {
         foreach (Slot slot in this) {
             if (slot.HasMinimum)
                 continue;
-            returnData.Add( new KeyValuePair<int, int>(slot.SlotSkill.SlotTypeID, slot.UnderMin) );
+            returnData.Add( new KeyValuePair<int, int>(slot.SkillID, slot.UnderMin) );
         }
         return returnData;
     }
+    public void RemovePerson(Person person) {
+        foreach (Slot slot in this) {
+            if (slot.Assigned.Contains(person))
+                slot.Assigned.Remove(person);
+        }
+    }
     public Slot SlotBySkill(int SkillType) {
-        return this.First(s => s.SlotSkill.SlotTypeID == SkillType);
+        return this.First(s => s.SkillID == SkillType);
+    }
+    public List<Slot> ToSlot() {
+        return this;
     }
     public bool Remove(int slotID) { 
         return Remove(this.First(s => s.SlotID == slotID));
