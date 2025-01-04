@@ -26,6 +26,111 @@ namespace DCManagement.Forms {
             ResizeForm();
             BackgroundImage = _floorplan.ImageWithLocations;
         }
+        #region Data Methods
+        private void FillGoalSlots(int SkillID) {
+            //First try and fill all teams to goal staffing from float
+            List<Team> teamsToFill = [.. _teams.Where(t => !t.HasGoalStaffing() && t.HighestPriorityNeed() == SkillID)];
+            for (int i = 0; i < teamsToFill.Count; i++) {
+                Team team = teamsToFill[i];
+                if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.IsAvailable)
+                    continue;
+                if (team.Slots.AtGoal)
+                    continue;
+                foreach (var kvp in team.Slots.GoalNeeded().Where(kvp => kvp.Key == SkillID)) {
+                    if (kvp.Value <= 0)
+                        continue;
+                    int available = _availablePeople.AvailbleSkills(kvp.Value);
+                    if (available == 0)
+                        continue;
+                    int willTake = Math.Min(available, kvp.Value);
+                    for (int j = 0; j < willTake; j++) {
+                        Person thisPerson = _availablePeople.GetPerson(kvp.Key);
+                        if (thisPerson.Team is not null)
+                            thisPerson.Team.ReassignPerson(thisPerson, team, SkillID);
+                        else
+                            team.AssignPerson(thisPerson, SkillID);
+                        Slot slot = team.Slots.First(s => s.SkillID == kvp.Key);
+                        slot.Assigned.Add(thisPerson);
+                        thisPerson.Team = team;
+                    }
+                }
+            }
+            if (!_teams.Any(t => !t.HasGoalStaffingBySkill(SkillID)))
+                return;
+            //Now scan for teams that are over their goal count and have available unlocked members
+            //If found, swap to the team that needs them more
+            for (int i = 0; i < _teams.Count; i++) {
+                Team team = _teams[i];
+                if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.IsAvailable)
+                    continue;
+                if (team.Slots.AtGoal)
+                    continue;
+                foreach (var kvp in team.Slots.GoalNeeded().Where(kvp => kvp.Key == SkillID)) {
+                    if (kvp.Value <= 0)
+                        continue;
+                    Team donorTeam = _teams.First(t => t.Slots.AvailableSlotsForGoal.Contains(kvp.Key));
+                    Slot donorTeamSlot = donorTeam.Slots.First(s => s.SkillID == kvp.Key);
+                    donorTeam.ReassignPerson(donorTeamSlot.Assigned.Random(), team, donorTeamSlot.SkillID);
+                }
+            }
+            if (!_teams.Any(t => !t.HasGoalStaffingBySkill(SkillID)))
+                return;
+            //ThisSlotNeedsFilling
+            //ThereAreAvailableMoves
+            //TODO Generate some kind of alert that not all teams could be filled
+        }
+        private void FillMinimumSlots(int SkillID) {
+            //First try and fill all teams to minimum staffing from float
+            List<Team> teamsToFill = [.. _teams.Where(t => !t.HasMinimumStaffing() && t.HighestPriorityNeed() == SkillID)];
+            for (int i = 0; i < teamsToFill.Count; i++) {
+                Team team = teamsToFill[i];
+                if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.IsAvailable)
+                    continue;
+                if (team.Slots.AtMinimum)
+                    continue;
+                foreach (var kvp in team.Slots.MinimumNeeded().Where(kvp => kvp.Key == SkillID)) {
+                    if (kvp.Value <= 0)
+                        continue;
+                    int available = _availablePeople.AvailbleSkills(kvp.Value);
+                    if (available == 0)
+                        continue;
+                    int willTake = Math.Min(available, kvp.Value);
+                    for (int j = 0; j < willTake; j++) {
+                        Person thisPerson = _availablePeople.GetPerson(kvp.Key);
+                        if (thisPerson.Team is not null)
+                            thisPerson.Team.ReassignPerson(thisPerson, team, SkillID);
+                        else
+                            team.AssignPerson(thisPerson, SkillID);
+                        Slot slot = team.Slots.First(s => s.SkillID == kvp.Key);
+                        slot.Assigned.Add(thisPerson);
+                        thisPerson.Team = team;
+                    }
+                }
+            }
+            if (!_teams.Any(t => !t.HasMinimumStaffingBySkill(SkillID)))
+                return;
+            //Now scan for teams that are over their minimum count and have available unlocked members
+            //If found, swap to the team that needs them more
+            for (int i = 0; i < _teams.Count; i++) {
+                Team team = _teams[i];
+                if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.IsAvailable)
+                    continue;
+                if (team.Slots.AtMinimum)
+                    continue;
+                foreach (var kvp in team.Slots.MinimumNeeded().Where(kvp => kvp.Key == SkillID)) {
+                    if (kvp.Value <= 0)
+                        continue;
+                    Team donorTeam = _teams.First(t => t.Slots.AvailableSlots.Contains(kvp.Key));
+                    Slot donorTeamSlot = donorTeam.Slots.First(s => s.SkillID == kvp.Key);
+                    donorTeam.ReassignPerson(donorTeamSlot.Assigned.Random(), team, donorTeamSlot.SkillID);
+                }
+            }
+            if (!_teams.Any(t => !t.HasMinimumStaffingBySkill(SkillID)))
+                return;
+            //ThisSlotNeedsFilling
+            //ThereAreAvailableMoves
+            //TODO Generate some kind of alert that not all teams could be filled
+        }
         private List<Person> GetDefaultSlotAssignments(int TeamID, int SlotTypeID) {
             Program.OpenConn();
             using SqlCommand cmd = new();
@@ -191,132 +296,6 @@ namespace DCManagement.Forms {
                 _availablePeople.People.Add(thisPerson);
             }
         }
-        private void ResizeForm() {
-            Size imageSize = _floorplan.ImageSize;
-            float aspectRatio = (float)imageSize.Width / (float)imageSize.Height;
-            if (imageSize.Width <= _maxSize.Width && imageSize.Height <= _maxSize.Height) {
-                Size = imageSize;
-                BackgroundImageLayout = ImageLayout.Center;
-            } else {
-                if (aspectRatio >= 1) {
-                    Size = new Size() {
-                        Width = _maxSize.Width,
-                        Height = (int)(_maxSize.Width / aspectRatio)
-                    };
-                } else {
-                    Size = new Size() {
-                        Width = (int)(_maxSize.Height * aspectRatio),
-                        Height = _maxSize.Height
-                    };
-                }
-                BackgroundImageLayout = ImageLayout.Stretch;
-            }
-            _floorplan.ClientSize = this.ClientSize;
-        }
-        private void FillGoalSlots(int SkillID) {
-            //First try and fill all teams to goal staffing from float
-            List<Team> teamsToFill = [.. _teams.Where(t => !t.HasGoalStaffing() && t.HighestPriorityNeed() == SkillID)];
-            for (int i = 0; i < teamsToFill.Count; i++) {
-                Team team = teamsToFill[i];
-                if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.IsAvailable)
-                    continue;
-                if (team.Slots.AtGoal)
-                    continue;
-                foreach (var kvp in team.Slots.GoalNeeded().Where(kvp => kvp.Key == SkillID)) {
-                    if (kvp.Value <= 0)
-                        continue;
-                    int available = _availablePeople.AvailbleSkills(kvp.Value);
-                    if (available == 0)
-                        continue;
-                    int willTake = Math.Min(available, kvp.Value);
-                    for (int j = 0; j < willTake; j++) {
-                        Person thisPerson = _availablePeople.GetPerson(kvp.Key);
-                        if (thisPerson.Team is not null)
-                            thisPerson.Team.ReassignPerson(thisPerson, team, SkillID);
-                        else
-                            team.AssignPerson(thisPerson, SkillID);
-                        Slot slot = team.Slots.First(s => s.SkillID == kvp.Key);
-                        slot.Assigned.Add(thisPerson);
-                        thisPerson.Team = team;
-                    }
-                }
-            }
-            if (!_teams.Any(t => !t.HasGoalStaffingBySkill(SkillID)))
-                return;
-            //Now scan for teams that are over their goal count and have available unlocked members
-            //If found, swap to the team that needs them more
-            for (int i = 0; i < _teams.Count; i++) {
-                Team team = _teams[i];
-                if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.IsAvailable)
-                    continue;
-                if (team.Slots.AtGoal)
-                    continue;
-                foreach (var kvp in team.Slots.GoalNeeded().Where(kvp => kvp.Key == SkillID)) {
-                    if (kvp.Value <= 0)
-                        continue;
-                    Team donorTeam = _teams.First(t => t.Slots.AvailableSlotsForGoal.Contains(kvp.Key));
-                    Slot donorTeamSlot = donorTeam.Slots.First(s => s.SkillID == kvp.Key);
-                    donorTeam.ReassignPerson(donorTeamSlot.Assigned.Random(), team, donorTeamSlot.SkillID);
-                }
-            }
-            if (!_teams.Any(t => !t.HasGoalStaffingBySkill(SkillID)))
-                return;
-            //ThisSlotNeedsFilling
-            //ThereAreAvailableMoves
-            //TODO Generate some kind of alert that not all teams could be filled
-        }
-        private void FillMinimumSlots(int SkillID) {
-            //First try and fill all teams to minimum staffing from float
-            List<Team> teamsToFill = [.. _teams.Where(t => !t.HasMinimumStaffing() && t.HighestPriorityNeed() == SkillID)];
-            for (int i = 0; i < teamsToFill.Count; i++) {
-                Team team = teamsToFill[i];
-                if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.IsAvailable)
-                    continue;
-                if (team.Slots.AtMinimum)
-                    continue;
-                foreach (var kvp in team.Slots.MinimumNeeded().Where(kvp => kvp.Key == SkillID)) {
-                    if (kvp.Value <= 0)
-                        continue;
-                    int available = _availablePeople.AvailbleSkills(kvp.Value);
-                    if (available== 0)
-                        continue;
-                    int willTake = Math.Min(available, kvp.Value);
-                    for (int j = 0; j < willTake; j++) {
-                        Person thisPerson = _availablePeople.GetPerson(kvp.Key);
-                        if (thisPerson.Team is not null)
-                            thisPerson.Team.ReassignPerson(thisPerson, team, SkillID);
-                        else
-                            team.AssignPerson(thisPerson, SkillID);
-                        Slot slot = team.Slots.First(s => s.SkillID == kvp.Key);
-                        slot.Assigned.Add(thisPerson);
-                        thisPerson.Team = team;
-                    }
-                }
-            }
-            if (!_teams.Any(t => !t.HasMinimumStaffingBySkill(SkillID)))
-                return;
-            //Now scan for teams that are over their minimum count and have available unlocked members
-            //If found, swap to the team that needs them more
-            for (int i = 0; i < _teams.Count; i++) {
-                Team team = _teams[i];
-                if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.IsAvailable)
-                    continue;
-                if (team.Slots.AtMinimum)
-                    continue;
-                foreach (var kvp in team.Slots.MinimumNeeded().Where(kvp => kvp.Key == SkillID)) {
-                    if (kvp.Value <= 0)
-                        continue;
-                    Team donorTeam = _teams.First(t => t.Slots.AvailableSlots.Contains(kvp.Key));
-                    Slot donorTeamSlot = donorTeam.Slots.First(s => s.SkillID == kvp.Key);
-                    donorTeam.ReassignPerson(donorTeamSlot.Assigned.Random(), team, donorTeamSlot.SkillID);
-                }
-            }
-            if (!_teams.Any(t => !t.HasMinimumStaffingBySkill(SkillID)))
-                return;
-            //ThisSlotNeedsFilling
-            //ThereAreAvailableMoves
-            //TODO Generate some kind of alert that not all teams could be filled
-        }
         private void PrepTeams() {
             for (int i = 0; i < _teams.Count; i++) {
                 Team team = _teams[i];
@@ -342,6 +321,30 @@ namespace DCManagement.Forms {
                 _teams[i] = team;
             }
         }
+        #endregion
+        private void ResizeForm() {
+            Size imageSize = _floorplan.ImageSize;
+            float aspectRatio = (float)imageSize.Width / (float)imageSize.Height;
+            if (imageSize.Width <= _maxSize.Width && imageSize.Height <= _maxSize.Height) {
+                Size = imageSize;
+                BackgroundImageLayout = ImageLayout.Center;
+            } else {
+                if (aspectRatio >= 1) {
+                    Size = new Size() {
+                        Width = _maxSize.Width,
+                        Height = (int)(_maxSize.Width / aspectRatio)
+                    };
+                } else {
+                    Size = new Size() {
+                        Width = (int)(_maxSize.Height * aspectRatio),
+                        Height = _maxSize.Height
+                    };
+                }
+                BackgroundImageLayout = ImageLayout.Stretch;
+            }
+            _floorplan.ClientSize = this.ClientSize;
+        }
+        #region Form Event Handlers
         private void DailyAssignment_Load(object sender, EventArgs e) {
             GetSlotTypes();
             _teams = GetTeamData();
@@ -362,5 +365,6 @@ namespace DCManagement.Forms {
                 FillGoalSlots(skill.SkillID);
             }
         }
+        #endregion
     }
 }
