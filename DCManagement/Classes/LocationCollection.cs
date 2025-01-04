@@ -1,7 +1,8 @@
-﻿using System;
+﻿using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace DCManagement.Classes; 
-internal class LocationCollection : Dictionary<int, Location> {
+public class LocationCollection : Dictionary<int, Location> {
     private Dictionary<int, string> _idsAndNames = [];
     public Dictionary<int, string> ListboxDatasource {
         get => _idsAndNames;
@@ -38,6 +39,23 @@ internal class LocationCollection : Dictionary<int, Location> {
             if (location.IsPointInside(point)) return location;
         }
         return null;
+    }
+    public static LocationCollection GetLocations() {
+        Program.OpenConn();
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location";
+        cmd.Connection = Program.conn;
+        LocationCollection loc = [];
+        loc = [];
+        using SqlDataReader reader = cmd.ExecuteReader();
+        object[] row = new object[6];
+        while (reader.Read()) {
+            _ = reader.GetValues(row);
+            loc.Add(new Location(row));
+        }
+        reader.Close();
+        return loc;
     }
     public bool IntersectsWithAny(Location OtherLocation) {
         foreach (Location location in Values)

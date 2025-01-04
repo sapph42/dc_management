@@ -26,58 +26,30 @@ namespace DCManagement.Forms {
         private Point? _firstPoint;
         private Location? _pendingLocation;
         private Location? _lastClickLocation;
-        private LocationCollection _locationCollection = [];
-        private Image _floorPlan = new Bitmap(1, 1);
-        private Image _floorPlanWithLocations = new Bitmap(1, 1);
-        private Image _floorPlanMoving = new Bitmap(1, 1);
+        private readonly Floorplan _floorplan;
         private readonly StateString _state = new();
+        private readonly Size _maxSize;
         #endregion
         public LocationManagement() {
-            Program.conn = new(Program.SqlConnectionString);
             InitializeComponent();
+            _floorplan = new Floorplan() {
+                Locations = LocationCollection.GetLocations(),
+            };
+            _maxSize = new() {
+                Height = ClientSize.Height,
+                Width = ClientSize.Width
+            };
+            ResizeForm();
         }
         #region Internal Helper Functions
-        #region Database Interaction
+        #region FloorPlan Wrappers
         private void LoadFloorplan() {
-            Program.OpenConn();
-            using SqlCommand cmd = new();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = @"SELECT TOP (1) Image FROM Floorplan";
-            cmd.Connection = Program.conn;
-            Image? floorplan = null;
-            using SqlDataReader reader = cmd.ExecuteReader();
-            if (reader.Read())
-                if (!reader.IsDBNull(0))
-                    using (MemoryStream stream = new()) {
-                        using Stream data = reader.GetStream(0);
-                        data.CopyTo(stream);
-                        floorplan = Image.FromStream(stream);
-                        _floorPlan = (Image)floorplan.Clone();
-                        _floorPlanWithLocations = (Image)floorplan.Clone();
-                    }
-            if (floorplan is null)
-                return;
-            reader.Close();
-            BackgroundImage = _floorPlanWithLocations;
-            BackgroundImageLayout = ImageLayout.Stretch;
-            GetLocations();
-            DrawLocations();
+            _floorplan.LoadFloorplan();
+            ResizeForm();
+            BackgroundImage = _floorplan.ImageWithLocations;
         }
-        private void GetLocations() {
-            Program.OpenConn();
-            using SqlCommand cmd = new();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location";
-            cmd.Connection = Program.conn;
-            _locationCollection = [];
-            using SqlDataReader reader = cmd.ExecuteReader();
-            object[] row = new object[6];
-            while (reader.Read()) {
-                _ = reader.GetValues(row);
-                _locationCollection.Add(new Location(row));
-            }
-            reader.Close();
-        }
+        #endregion
+        #region Database Interaction
         private void WriteNewLocation() {
             switch (_actionState) {
                 case ActionState.NamingNew:
@@ -91,7 +63,7 @@ namespace DCManagement.Forms {
                         cmd.CommandText = "dbo.InsertLocation";
                         cmd.Parameters.AddRange(_pendingLocation.GetSqlParameters());
                         _pendingLocation.LocID = (int)cmd.ExecuteScalar();
-                        _locationCollection.Add(_pendingLocation);
+                        _floorplan.Locations.Add(_pendingLocation);
                         _pendingLocation = null;
                     }
                     break;
@@ -106,73 +78,51 @@ namespace DCManagement.Forms {
                         cmd.CommandText = "dbo.UpdateLocation";
                         cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
                         _ = cmd.ExecuteNonQuery();
-                        _locationCollection[_lastClickLocation.LocID] = _lastClickLocation;
+                        _floorplan.Locations[_lastClickLocation.LocID] = _lastClickLocation;
                         _lastClickLocation = null;
                     }
                     break;
                 default:
                     break;
             }
-            DrawLocations();
+            _floorplan.DrawLocations();
         }
         #endregion
-        #region Drawing
-        private void DrawLocations() {
-            if (BackgroundImage is null || _locationCollection is null || !_locationCollection.Any())
-                return;
-            DrawLocations(_locationCollection);
-        }
-        private void DrawLocations(LocationCollection usingCollection) {
-            if (BackgroundImage is null || usingCollection is null || !usingCollection.Any())
-                return;
-            Bitmap image = new(_floorPlan);
-            using Graphics graphics = Graphics.FromImage(image);
-            using Pen borderPen = new(Color.Black);
-            using Pen textPen = new(Color.Black);
-            using Brush textBrush = textPen.Brush;
-            borderPen.Width = 1f;
-            foreach (var location in usingCollection.Values) {
-                graphics.DrawRectangle(borderPen, location.Rect);
-                graphics.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), textBrush, location.UpperLeft);
-            }
-            _floorPlanWithLocations = (Image)image.Clone();
-            _floorPlanMoving = (Image)image.Clone(); ;
-            BackgroundImage = _floorPlanWithLocations;
-        }
-        #endregion
-        private Point AdjustPointForScaling(Point BasePoint) {
-            if (BackgroundImage is null)
-                return BasePoint;
-            float scaleX = (float)BackgroundImage.Width / ClientSize.Width;
-            float scaleY = (float)BackgroundImage.Height / ClientSize.Height;
-            return new Point(
-                (int)(BasePoint.X * scaleX),
-                (int)(BasePoint.Y * scaleY)
-            );
-        }
-        private Point AdjustPointforScalingInverse(Point BasePoint) {
-            if (BackgroundImage is null)
-                return BasePoint;
-            float scaleX = (float)BackgroundImage.Width / ClientSize.Width;
-            float scaleY = (float)BackgroundImage.Height / ClientSize.Height;
-            return new Point(
-                (int)(BasePoint.X / scaleX),
-                (int)(BasePoint.Y / scaleY)
-            );
-        }
         private void CancelActionStates(bool keepFields = false) {
             _actionAllowed = ActionAllowed.None;
             _actionState = ActionState.None;
             _state.Text = "";
             NameEditTextbox.Text = "";
             NameEditTextbox.Visible = false;
-            BackgroundImage = _floorPlanWithLocations;
+            BackgroundImage = _floorplan.ImageWithLocations;
             if (!keepFields) {
                 _lastClick = new();
                 _lastClickLocation = null;
                 _pendingLocation = null;
                 CancelPendingActionToolStripMenuItem.Visible = false;
             }
+        }
+        private void ResizeForm() {
+            Size imageSize = _floorplan.ImageSize;
+            float aspectRatio = (float)imageSize.Width / (float)imageSize.Height;
+            if (imageSize.Width <= _maxSize.Width && imageSize.Height <= _maxSize.Height) {
+                Size = imageSize;
+                BackgroundImageLayout = ImageLayout.Center;
+            } else {
+                if (aspectRatio >= 1) {
+                    Size = new Size() {
+                        Width = _maxSize.Width,
+                        Height = (int)(_maxSize.Width / aspectRatio)
+                    };
+                } else {
+                    Size = new Size() {
+                        Width = (int)(_maxSize.Height * aspectRatio),
+                        Height = _maxSize.Height
+                    };
+                }
+                BackgroundImageLayout = ImageLayout.Stretch;
+            }
+            _floorplan.ClientSize = this.ClientSize;
         }
         #endregion
         #region Form Event Handlers
@@ -186,7 +136,7 @@ namespace DCManagement.Forms {
             Program.conn.Dispose();
         }
         private void LocationManagement_MouseDown(object sender, MouseEventArgs e) {
-            _lastClick = AdjustPointForScaling(e.Location);
+            _lastClick = _floorplan.AdjustPointForScaling(e.Location);
             Debug.WriteLine($"MouseDown @ {e.X},{e.Y}, Adjusted {_lastClick.X},{_lastClick.Y}; Button: {e.Button}, " +
                 $"ActionAllowed: {_actionAllowed}, ActionState: {_actionState}, " +
                 $"PendingLocation: {(_pendingLocation is null ? "IsNull" : "IsNotNull")} " +
@@ -197,25 +147,24 @@ namespace DCManagement.Forms {
                 case ActionAllowed.Moving:
                     if (_actionState == ActionState.Moving)
                         return;
-                    _lastClickLocation = _locationCollection.FindByPoint(_lastClick);
+                    _lastClickLocation = _floorplan.Locations.FindByPoint(_lastClick);
                     if (_lastClickLocation is null)
                         return;
                     _actionState = ActionState.Moving;
                     _state.Text = "Select location to move";
-                    _floorPlanMoving = (Image)_floorPlanWithLocations.Clone();
+                    _floorplan.ImageMoving = (Image)_floorplan.ImageWithLocations!.Clone();
                     break;
                 case ActionAllowed.Drawing:
                     if (_pendingLocation is not null) {
                         _pendingLocation = null;
                     }
-                    if (_locationCollection.FindByPoint(_lastClick) is not null) {
+                    if (_floorplan.Locations.FindByPoint(_lastClick) is not null) {
                         AlertMessagesTSMI.Text = "Cannot create a new location inside a current location!";
                         _actionState = ActionState.Drawing;
                         return;
                     }
                     _firstPoint = _lastClick;
                     _actionState = ActionState.Drawing;
-                    _floorPlanMoving = (Image)_floorPlanWithLocations.Clone();
                     Refresh();
                     break;
                 default:
@@ -223,7 +172,7 @@ namespace DCManagement.Forms {
             }
         }
         private void LocationManagement_MouseUp(object sender, MouseEventArgs e) {
-            Point click = AdjustPointForScaling(e.Location);
+            Point click = _floorplan.AdjustPointForScaling(e.Location);
             Debug.WriteLine($"MouseUp @ {e.X},{e.Y}, Adjusted {click.X},{click.Y}; Button: {e.Button}, " +
                 $"ActionAllowed: {_actionAllowed}, ActionState: {_actionState}, " +
                 $"PendingLocation: {(_pendingLocation is null ? "IsNull" : "IsNotNull")} " +
@@ -245,14 +194,14 @@ namespace DCManagement.Forms {
                     if (proposedRect.Right > BackgroundImage.Width || proposedRect.Bottom > BackgroundImage.Height) {
                         _actionState = ActionState.None;
                         _lastClickLocation = null;
-                        BackgroundImage = _floorPlanWithLocations;
+                        BackgroundImage = _floorplan.ImageWithLocations;
                         AlertMessagesTSMI.Text = "Locations cannot extend out of bounds";
                         return;
                     }
-                    if (_locationCollection.IntersectsWithAny(proposedRect) && _locationCollection.IntersectWithByID(proposedRect) != _lastClickLocation.LocID) {
+                    if (_floorplan.Locations.IntersectsWithAny(proposedRect) && _floorplan.Locations.IntersectWithByID(proposedRect) != _lastClickLocation.LocID) {
                         _actionState = ActionState.None;
                         _lastClickLocation = null;
-                        BackgroundImage = _floorPlanWithLocations;
+                        BackgroundImage = _floorplan.ImageWithLocations;
                         AlertMessagesTSMI.Text = "Locations cannot be moved to overlap with existing locations";
                         return;
                     }
@@ -282,22 +231,16 @@ namespace DCManagement.Forms {
                         }
                     };
                     _pendingLocation = new(rect);
-                    if (_locationCollection.IntersectsWithAny(_pendingLocation)) {
+                    if (_floorplan.Locations.IntersectsWithAny(_pendingLocation)) {
                         _pendingLocation = null;
                         _actionState = ActionState.None;
                         _firstPoint = null;
                         AlertMessagesTSMI.Text = "A new location may not overlap with existing locations.";
                         return;
                     }
-                    Bitmap image = new(_floorPlanWithLocations);
-                    using (Graphics graphics = Graphics.FromImage(image)) {
-                        using Pen pen = new(Color.Red);
-                        pen.Width = 2f;
-                        graphics.DrawRectangle(pen, rect);
-                        BackgroundImage = image;
-                    }
+                    BackgroundImage = _floorplan.DrawNewRectangle(rect);
                     _actionState = ActionState.NamingNew;
-                    NameEditTextbox.Location = AdjustPointforScalingInverse(new(_pendingLocation.CenterLeft.X - 10, _pendingLocation.CenterLeft.Y));
+                    NameEditTextbox.Location = _floorplan.AdjustPointforScalingInverse(new(_pendingLocation.CenterLeft.X - 10, _pendingLocation.CenterLeft.Y));
                     NameEditTextbox.Text = "";
                     NameEditTextbox.Visible = true;
                     NameEditTextbox.BringToFront();
@@ -313,35 +256,27 @@ namespace DCManagement.Forms {
             MouseCoordTSMI.Text = $"{e.X},{e.Y}";
             if (BackgroundImage is null)
                 return;
-            Bitmap image = new(_floorPlanMoving);
             Rectangle rect;
-            Pen pen;
             switch (_actionState) {
                 case ActionState.Moving:
                     if (_lastClickLocation is null) {
                         CancelActionStates();
                         return;
                     }
-                    Point current = AdjustPointForScaling(e.Location);
+                    Point current = _floorplan.AdjustPointForScaling(e.Location);
                     rect = new() {
                         Location = current,
                         Size = _lastClickLocation.Size
                     };
-                    using (Graphics g = Graphics.FromImage(image)) {
-                        pen = new(Color.Black) {
-                            Width = 2f
-                        };
-                        g.DrawRectangle(pen, rect);
-                        BackgroundImage = image;
-                    }
+                    BackgroundImage = _floorplan.DrawMovingRectangle(rect);
                     break;
                 case ActionState.Drawing:
                     if (_firstPoint is null || _pendingLocation is not null) {
                         CancelActionStates();
                         return;
                     }
-                    Point second = AdjustPointForScaling(e.Location);
-                    Location? loc = _locationCollection.FindByPoint(second);
+                    Point second = _floorplan.AdjustPointForScaling(e.Location);
+                    Location? loc = _floorplan.Locations.FindByPoint(second);
                     if (loc is not null) {
                         TeamTooltip.Active = true;
                         TeamTooltip.ToolTipTitle = loc.Name;
@@ -358,14 +293,7 @@ namespace DCManagement.Forms {
                         }
                     };
                     Debug.WriteLine($"RectX: {rect.Location.X}, RectY{rect.Location.Y}, RectWidth{rect.Size.Width}, RectHeight{rect.Size.Height}, RectLeft{rect.Left}, RectTop{rect.Top}, RectRight{rect.Right}, RectBottom{rect.Bottom}");
-                    using (Graphics graphics = Graphics.FromImage(image)) {
-                        pen = new(Color.Red) {
-                            DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot,
-                            Width = 2f
-                        };
-                        graphics.DrawRectangle(pen, rect);
-                        BackgroundImage = image;
-                    }
+                    BackgroundImage = _floorplan.DrawNewRectangle(rect);
                     break;
                 default:
                     return;
@@ -408,7 +336,7 @@ namespace DCManagement.Forms {
             CancelActionStates();
         }
         private void ContextMenu_Opening(object sender, CancelEventArgs e) {
-            Location? loc = _locationCollection.FindByPoint(_lastClick);
+            Location? loc = _floorplan.Locations.FindByPoint(_lastClick);
             if (loc is null) {
                 e.Cancel = true;
                 return;
@@ -426,11 +354,11 @@ namespace DCManagement.Forms {
             cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
             var result = cmd.ExecuteScalar().ToString();
             if (result == "0")
-                _locationCollection.Remove(_lastClickLocation);
+                _floorplan.Locations.Remove(_lastClickLocation);
             else if (result == "Cascade")
                 AlertMessagesTSMI.Text = "Cannot delete a location while teams are assigned to that location!";
             CancelActionStates();
-            DrawLocations();
+            _floorplan.DrawLocations();
         }
         private void DrawNewLocationToolStripMenuItem_Click(object sender, EventArgs e) {
             CancelActionStates();
@@ -446,9 +374,10 @@ namespace DCManagement.Forms {
             _actionState = ActionState.Moving;
             CancelPendingActionToolStripMenuItem.Visible = true;
             _state.Text = $"Moving Location: {_lastClickLocation.Name}";
-            LocationCollection unaffected = _locationCollection.Clone();
+            LocationCollection unaffected = _floorplan.Locations.Clone();
             unaffected.Remove(_lastClickLocation);
-            DrawLocations(unaffected);
+            _floorplan.SetMoving(unaffected);
+            BackgroundImage = _floorplan.ImageMoving;
         }
         private void NameEditTextbox_KeyUp(object sender, KeyEventArgs e) {
             if (e.KeyCode == Keys.Escape)
@@ -476,7 +405,7 @@ namespace DCManagement.Forms {
             }
             WriteNewLocation();
             GetLocations();
-            DrawLocations();
+            _floorplan.DrawLocations();
             CancelActionStates();
         }
         private void RenameLocationToolStripMenuItem_Click(object sender, EventArgs e) {

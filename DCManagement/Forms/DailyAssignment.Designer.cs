@@ -29,7 +29,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(1596, 742);
             Name = "DailyAssignment";
             Text = "DailyAssignment";
             Load += DailyAssignment_Load;
