@@ -1,20 +1,21 @@
 ﻿namespace DCManagement.Classes; 
-public class SlotType {
-    public int SlotTypeID { get; set; }
+public class Skill {
+    public int SkillID { get; set; }
     public required string Description { get; set; }
     public Color SlotColor { get; set; }
-    public SlotType() { }
-    public SlotType(int id, string desc) {
-        SlotTypeID = id;
+    public int Priority { get; set; }
+    public Skill() { }
+    public Skill(int id, string desc) {
+        SkillID = id;
         Description = desc;
     }
-    public SlotType(int id, string desc, Color color) {
-        SlotTypeID = id;
+    public Skill(int id, string desc, Color color) {
+        SkillID = id;
         Description = desc;
         SlotColor = color;
     }
-    public SlotType(int id, string desc, string color) {
-        SlotTypeID = id;
+    public Skill(int id, string desc, string color) {
+        SkillID = id;
         Description = desc;
         SlotColor = ColorTranslator.FromHtml(color); 
     }

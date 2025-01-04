@@ -6,7 +6,7 @@ namespace DCManagement.Forms;
 public partial class SlotAssignment : Form {
     #region Fields
     private readonly Team _team;
-    private readonly List<SlotType> _slotTypes = [];
+    private readonly List<Skill> _slotTypes = [];
 
     private bool _isRowDirty = false;
     private bool _inserting = false;
@@ -31,7 +31,7 @@ public partial class SlotAssignment : Form {
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read()) {
             _slotTypes.Add(new() {
-                SlotTypeID = reader.GetInt32(0),
+                SkillID = reader.GetInt32(0),
                 Description = reader.GetString(1),
                 SlotColor = ColorTranslator.FromHtml(reader.GetString(2))
             });
@@ -51,7 +51,7 @@ public partial class SlotAssignment : Form {
             Slots.Add(
                 new() {
                     SlotID = reader.GetInt32(0),
-                    SlotSkill = _slotTypes.First(st => st.SlotTypeID == reader.GetInt32(1)),
+                    Skill = _slotTypes.First(st => st.SkillID == reader.GetInt32(1)),
                     MinQty = reader.GetInt32(2),
                     GoalQty = reader.GetInt32(3)
                 }
@@ -112,7 +112,7 @@ public partial class SlotAssignment : Form {
         SlotTypeColumn.DisplayMember = "Description";
         SlotTypeColumn.ValueMember = "SlotTypeID";
         foreach (var slot in Slots) {
-            SlotsDGV.Rows.Add([slot.SlotID, slot.SlotSkill.SlotTypeID, slot.MinQty, slot.GoalQty]);
+            SlotsDGV.Rows.Add([slot.SlotID, slot.Skill.SkillID, slot.MinQty, slot.GoalQty]);
         }
     }
     #endregion
@@ -128,7 +128,7 @@ public partial class SlotAssignment : Form {
             row.Cells[0].Value = newSlotID;
             Slots.Add(new() {
                 SlotID = newSlotID,
-                SlotSkill = _slotTypes.First(st => st.SlotTypeID == (int)row.Cells[1].Value),
+                Skill = _slotTypes.First(st => st.SkillID == (int)row.Cells[1].Value),
                 MinQty = Int32.Parse((string)row.Cells[2].Value),
                 GoalQty = Int32.Parse((string)row.Cells[3].Value)
             });
@@ -144,7 +144,7 @@ public partial class SlotAssignment : Form {
                 continue;
             Slots[i] = new() {
                 SlotID = slotID,
-                SlotSkill = _slotTypes.First(st => st.SlotTypeID == (int)row.Cells[1].Value),
+                Skill = _slotTypes.First(st => st.SkillID == (int)row.Cells[1].Value),
                 MinQty = Int32.Parse((string)row.Cells[2].Value),
                 GoalQty = Int32.Parse((string)row.Cells[3].Value)
             };

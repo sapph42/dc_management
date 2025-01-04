@@ -8,7 +8,7 @@ namespace DCManagement.Classes;
 internal class DailyTeam : Team {
     public List<DailySlot> Members { get; set; } = [];
 }
-internal class DailySlot : SlotType {
+internal class DailySlot : Skill {
     public Person? AssignedMember { get; set; }
     public bool ShouldFill = true;
     public bool MustFill = false;
