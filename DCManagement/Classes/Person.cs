@@ -10,6 +10,8 @@ namespace DCManagement.Classes;
 public class Person {
     private int? _teamID;
     private Team? _team;
+    private bool _active = true;
+    private bool _available = true;
     public int? PersonID { get; set; }
     public string LastName { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
@@ -25,10 +27,19 @@ public class Person {
             return Team?.TeamID ?? _teamID ?? -1;
         }
     }
-    public List<SlotType> Skills { get; set; } = [];
-    public bool IsActive { get; set; } = true;
-    public bool IsAvailable { get; set; } = true;
+    public List<Skill> Skills { get; set; } = [];
+    public bool Active { 
+        get => _active; 
+        set => _active = value; 
+    }
+    public bool Available { 
+        get {
+            return _available && _active;
+        } 
+        set => _available = value; 
+    }
     public string? NameOverride { get; set; }
+    public Label Label { get; set; } = new();
     public string FullName {
         get {
             if (!string.IsNullOrWhiteSpace(NameOverride))
@@ -43,10 +54,10 @@ public class Person {
         LastName = (string)values[1];
         FirstName = (string)values[2];
         _teamID = values[3] == DBNull.Value ? null : (int)values[3];
-        IsActive = (bool)values[4];
-        IsAvailable = (bool)values[5] ;
+        Active = (bool)values[4];
+        Available = (bool)values[5] ;
     }
-    public void AddSkill(SlotType value) {
+    public void AddSkill(Skill value) {
         if (Skills.Contains(value))
             return;
         Skills.Add(value);
@@ -58,14 +69,14 @@ public class Person {
             FirstName = FirstName,
             Team = Team,
             Skills = Skills,
-            IsActive = IsActive,
-            IsAvailable = IsAvailable
+            Active = Active,
+            Available = Available
         };
         return clone;
     }
     public List<int> GetSkillIDs() {
         if (Skills.Count > 0)
-            return Skills.Select(s => s.SlotTypeID).ToList();
+            return Skills.Select(s => s.SkillID).ToList();
         return [];
     }
     public SqlParameter[] GetSqlParameters() {
@@ -93,16 +104,19 @@ public class Person {
         coll[4] = new SqlParameter() {
             ParameterName = "@Active",
             SqlDbType = SqlDbType.Bit,
-            Value = IsActive
+            Value = Active
         };
         coll[5] = new SqlParameter() {
             ParameterName = "@Available",
             SqlDbType = SqlDbType.Bit,
-            Value = IsAvailable
+            Value = Available
         };
         return coll;
     }
-    public void SetSkills(IEnumerable<SlotType> values) {
+    public bool HasSkill(int SkillTypeID) {
+        return GetSkillIDs().Contains(SkillTypeID);
+    }
+    public void SetSkills(IEnumerable<Skill> values) {
         Skills.Clear();
         Skills.AddRange(values);
     }

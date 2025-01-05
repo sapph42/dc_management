@@ -16,7 +16,7 @@ internal class PersonCollection : Dictionary<int, Person> {
             return;
         int personID = (int)person.PersonID;
         if (ContainsKey(personID))
-            throw new ArgumentException("Cannot add locations with duplicate IDs");
+            throw new ArgumentException("Cannot add people with duplicate IDs");
         Add(personID, person);
         _idsAndNames.Add(personID, person.FullName);
     }
