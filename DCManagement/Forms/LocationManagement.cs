@@ -404,7 +404,7 @@ namespace DCManagement.Forms {
                     return;
             }
             WriteNewLocation();
-            GetLocations();
+            _floorplan.Locations = LocationCollection.GetLocations();
             _floorplan.DrawLocations();
             CancelActionStates();
         }
@@ -415,7 +415,7 @@ namespace DCManagement.Forms {
             CancelActionStates(true);
             CancelPendingActionToolStripMenuItem.Visible = true;
             _actionState = ActionState.Renaming;
-            NameEditTextbox.Location = AdjustPointforScalingInverse(new(_lastClickLocation.CenterLeft.X - 10, _lastClickLocation.CenterLeft.Y));
+            NameEditTextbox.Location = _floorplan.AdjustPointforScalingInverse(new(_lastClickLocation.CenterLeft.X - 10, _lastClickLocation.CenterLeft.Y));
             NameEditTextbox.Text = "";
             NameEditTextbox.Visible = true;
             NameEditTextbox.BringToFront();

@@ -34,6 +34,8 @@ public class Team {
     public string TeamName { get; set; }
     public Location? CurrentAssignment { get; set; }
     public TeamSlots Slots { get; set; } = [];
+
+    public LabelPattern? LabelPattern { get; set; }
     public Team() {
         TeamName = string.Empty;
     }
@@ -48,8 +50,8 @@ public class Team {
         FillIfNoLead = (bool)values[4];
         Active = (bool)values[5];
     }
-    public void AssignPerson(Person person, int skillID) {
-        if (person.AssignmentLocked)
+    public void AssignPerson(Person person, int skillID, bool lockOverride = false) {
+        if (person.AssignmentLocked & !lockOverride)
             return;
         person.Team = this;
         Slots
@@ -122,6 +124,10 @@ public class Team {
             .MaxBy(s => s.Priority)?
             .SkillID;
     }
+    public Slot? HighestPriorityMatch(Person person) => Slots
+            .Where(slot => person.Skills.Any(skill => skill.Equals((Skill)slot)))
+            .OrderByDescending(slot => slot.Priority)
+            .FirstOrDefault();
     public void ReassignPerson(Person person, Team newTeam, int skillID) {
         if (person.AssignmentLocked)
             return;
