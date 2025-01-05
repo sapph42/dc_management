@@ -29,8 +29,8 @@ public partial class PersonManagement : Form {
             Team = new() {
                 TeamID = (int)TeamCombobox.SelectedValue!
             },
-            IsActive = ActiveCheckbox.Checked,
-            IsAvailable = AvailableCheckbox.Checked,
+            Active = ActiveCheckbox.Checked,
+            Available = AvailableCheckbox.Checked,
             Skills = []
         };
         foreach (object skill in SkillsListbox.CheckedItems) {
@@ -194,8 +194,8 @@ public partial class PersonManagement : Form {
         LastnameTextbox.Text = _selectedPerson.LastName;
         FirstnameTextbox.Text = _selectedPerson.FirstName;
         TeamCombobox.SelectedValue = _selectedPerson.TeamID;
-        ActiveCheckbox.Checked = _selectedPerson.IsActive;
-        AvailableCheckbox.Checked = _selectedPerson.IsAvailable;
+        ActiveCheckbox.Checked = _selectedPerson.Active;
+        AvailableCheckbox.Checked = _selectedPerson.Available;
         SkillsListbox.ClearSelected();
         for (int i = 0; i < SkillsListbox?.Items.Count; i++) {
             if (_selectedPerson.Skills.Any(s => s.SkillID == ((Skill?)SkillsListbox?.Items[i])?.SkillID))
@@ -223,8 +223,8 @@ public partial class PersonManagement : Form {
             _selectedPerson.Team = new() {
                 TeamID = (int)TeamCombobox.SelectedValue!
             };
-            _selectedPerson.IsActive = ActiveCheckbox.Checked;
-            _selectedPerson.IsAvailable = AvailableCheckbox.Checked;
+            _selectedPerson.Active = ActiveCheckbox.Checked;
+            _selectedPerson.Available = AvailableCheckbox.Checked;
             _selectedPerson.Skills = [];
             foreach (object skill in SkillsListbox.CheckedItems) {
                 _selectedPerson.Skills.Add(_slotTypes.First(s => s.Equals(skill)));

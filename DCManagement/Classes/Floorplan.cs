@@ -10,7 +10,7 @@ public class Floorplan {
     public Size ClientSize { get; set; }
     public Size ImageSize { 
         get {
-            return BaseImage.Size;
+            return BaseImage?.Size ?? new Size();
         } 
     }
     public Floorplan () {
@@ -93,7 +93,7 @@ public class Floorplan {
     }
     public Image DrawMovingRectangle(Rectangle rect) {
         Pen pen;
-        Image image = (Image)ImageMoving.Clone();
+        Image image = (Image)(ImageMoving?.Clone() ?? ImageWithLocations?.Clone() ?? BaseImage!.Clone());
         using (Graphics g = Graphics.FromImage(image)) {
             pen = new(Color.Black) {
                 Width = 2f
@@ -104,7 +104,7 @@ public class Floorplan {
     }
     public Image DrawNewRectangle(Rectangle rect) {
         Pen pen;
-        Image image = (Image)ImageWithLocations.Clone();
+        Image image = (Image)(ImageWithLocations?.Clone() ?? BaseImage!.Clone());
         using (Graphics graphics = Graphics.FromImage(image)) {
             pen = new(Color.Red) {
                 DashStyle = System.Drawing.Drawing2D.DashStyle.DashDot,

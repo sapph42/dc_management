@@ -6,7 +6,7 @@ public class Slot : Skill {
     public List<Person> Assigned { get; set; } = [];
     public int AssignedToSlot {
         get {
-            return Assigned.Count();
+            return Assigned.Count;
         }
     }
     public bool HasMinimum {
