@@ -15,6 +15,8 @@ internal class PersonCollection : Dictionary<int, Person> {
         if (person.PersonID is null)
             return;
         int personID = (int)person.PersonID;
+        if (ContainsValue(person))
+            return;
         if (ContainsKey(personID))
             throw new ArgumentException("Cannot add people with duplicate IDs");
         Add(personID, person);

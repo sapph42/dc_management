@@ -41,11 +41,12 @@ public class LocationCollection : Dictionary<int, Location> {
         return null;
     }
     public static LocationCollection GetLocations() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location";
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         LocationCollection loc = [];
         loc = [];
         using SqlDataReader reader = cmd.ExecuteReader();

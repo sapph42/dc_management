@@ -17,9 +17,9 @@ public class Skill {
     public Skill(int id, string desc, string color) {
         SkillID = id;
         Description = desc;
-        SlotColor = ColorTranslator.FromHtml(color); 
+        SlotColor = ColorTranslator.FromHtml("#" + color); 
     }
     public void SetSlotColor (string ColorHex) {
-        SlotColor = ColorTranslator.FromHtml (ColorHex);
+        SlotColor = ColorTranslator.FromHtml ("#" + ColorHex);
     }
 }
