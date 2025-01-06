@@ -23,27 +23,63 @@
         /// the contents of this method with the code editor.
         /// </summary>
         private void InitializeComponent() {
-            label1 = new Label();
-            label2 = new Label();
+            EditMenu = new MenuStrip();
+            EditTSMI = new ToolStripMenuItem();
+            SetClinicFloorplanTSMI = new ToolStripMenuItem();
+            DrawNewLocationTSMI = new ToolStripMenuItem();
+            MouseCoordTSMI = new ToolStripMenuItem();
+            AlertMessagesTSMI = new ToolStripMenuItem();
+            CancelPendingActionToolStripMenuItem = new ToolStripMenuItem();
+            EditMenu.SuspendLayout();
             SuspendLayout();
             // 
-            // label1
+            // EditMenu
             // 
-            label1.AutoSize = true;
-            label1.Location = new Point(0, 0);
-            label1.Name = "label1";
-            label1.Size = new Size(44, 15);
-            label1.TabIndex = 0;
-            label1.Text = "Dentist";
+            EditMenu.Items.AddRange(new ToolStripItem[] { EditTSMI, MouseCoordTSMI, AlertMessagesTSMI, CancelPendingActionToolStripMenuItem });
+            EditMenu.Location = new Point(0, 0);
+            EditMenu.Name = "EditMenu";
+            EditMenu.Size = new Size(1596, 24);
+            EditMenu.TabIndex = 1;
+            EditMenu.Text = "Edit";
             // 
-            // label2
+            // EditTSMI
             // 
-            label2.AutoSize = true;
-            label2.Location = new Point(0, 16);
-            label2.Name = "label2";
-            label2.Size = new Size(54, 15);
-            label2.TabIndex = 1;
-            label2.Text = "Assistant";
+            EditTSMI.DropDownItems.AddRange(new ToolStripItem[] { SetClinicFloorplanTSMI, DrawNewLocationTSMI });
+            EditTSMI.Name = "EditTSMI";
+            EditTSMI.Size = new Size(39, 20);
+            EditTSMI.Text = "Edit";
+            EditTSMI.Visible = false;
+            // 
+            // SetClinicFloorplanTSMI
+            // 
+            SetClinicFloorplanTSMI.Name = "SetClinicFloorplanTSMI";
+            SetClinicFloorplanTSMI.Size = new Size(180, 22);
+            SetClinicFloorplanTSMI.Text = "Set Clinic Floorplan";
+            // 
+            // DrawNewLocationTSMI
+            // 
+            DrawNewLocationTSMI.Name = "DrawNewLocationTSMI";
+            DrawNewLocationTSMI.Size = new Size(180, 22);
+            DrawNewLocationTSMI.Text = "Draw New Location";
+            // 
+            // MouseCoordTSMI
+            // 
+            MouseCoordTSMI.Name = "MouseCoordTSMI";
+            MouseCoordTSMI.Size = new Size(26, 20);
+            MouseCoordTSMI.Text = "X";
+            // 
+            // AlertMessagesTSMI
+            // 
+            AlertMessagesTSMI.Alignment = ToolStripItemAlignment.Right;
+            AlertMessagesTSMI.Name = "AlertMessagesTSMI";
+            AlertMessagesTSMI.Size = new Size(12, 20);
+            // 
+            // CancelPendingActionToolStripMenuItem
+            // 
+            CancelPendingActionToolStripMenuItem.Name = "CancelPendingActionToolStripMenuItem";
+            CancelPendingActionToolStripMenuItem.Size = new Size(55, 20);
+            CancelPendingActionToolStripMenuItem.Text = "Cancel";
+            CancelPendingActionToolStripMenuItem.Visible = false;
             // 
             // DailyAssignment
             // 
@@ -51,20 +87,27 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1596, 742);
-            Controls.Add(label2);
-            Controls.Add(label1);
+            Controls.Add(EditMenu);
             Name = "DailyAssignment";
             Text = "DailyAssignment";
             Load += DailyAssignment_Load;
             DragDrop += DailyAssignment_DragDrop;
             DragOver += DailyAssignment_DragOver;
+            MouseMove += DailyAssignment_MouseMove;
+            EditMenu.ResumeLayout(false);
+            EditMenu.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
 
         #endregion
 
-        private Label label1;
-        private Label label2;
+        private MenuStrip EditMenu;
+        private ToolStripMenuItem EditTSMI;
+        private ToolStripMenuItem SetClinicFloorplanTSMI;
+        private ToolStripMenuItem DrawNewLocationTSMI;
+        private ToolStripMenuItem MouseCoordTSMI;
+        private ToolStripMenuItem AlertMessagesTSMI;
+        private ToolStripMenuItem CancelPendingActionToolStripMenuItem;
     }
 }

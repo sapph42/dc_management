@@ -39,11 +39,12 @@ public class Floorplan {
         );
     }
     public void LoadFloorplan() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT TOP (1) Image FROM Floorplan";
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         using SqlDataReader reader = cmd.ExecuteReader();
         if (reader.Read())
             if (!reader.IsDBNull(0))

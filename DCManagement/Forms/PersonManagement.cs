@@ -37,9 +37,10 @@ public partial class PersonManagement : Form {
             newPerson.Skills.Add(_skills.First(s => s.Equals(skill)));
         }
 
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertPerson";
         cmd.Parameters.AddRange(newPerson.GetSqlParameters()[1..]);
@@ -60,11 +61,12 @@ public partial class PersonManagement : Form {
         RefreshBox(newPerson.PersonID);
     }
     private void GetPeople() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetPeople";
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         _people = [];
         using SqlDataReader reader = cmd.ExecuteReader();
         object[] row = new object[7];
@@ -75,30 +77,32 @@ public partial class PersonManagement : Form {
         reader.Close();
     }
     private void GetSkills() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetSkills";
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read()) {
             _skills.Add(new() {
                 SkillID = reader.GetInt32(0),
                 Description = reader.GetString(1),
-                SlotColor = ColorTranslator.FromHtml(reader.GetString(2)),
+                SlotColor = ColorTranslator.FromHtml("#" + reader.GetString(2)),
                 Priority = reader.GetInt32(3)
             });
         }
         reader.Close();
     }
     private void LoadPersonInfo(int personID) {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetPersonData";
         cmd.Parameters.Add("@PersonID", SqlDbType.Int);
         cmd.Parameters["@PersonID"].Value = personID;
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         using SqlDataAdapter adapter = new(cmd);
         DataSet ds = new();
         adapter.Fill(ds);
@@ -123,15 +127,15 @@ public partial class PersonManagement : Form {
         }
     }
     private void LoadTeams() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetTeams";
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;        conn.Open();
         using SqlDataReader reader = cmd.ExecuteReader();
         _teams = [];
         _teams.Add(-1, "No Team Selected");
-        if (reader.Read()) {
+        while (reader.Read()) {
             _teams.Add(reader.GetInt32(0), reader.GetString(1));
         }
         reader.Close();
@@ -151,9 +155,9 @@ public partial class PersonManagement : Form {
     private void UpdatePerson() {
         if (_selectedPerson is null)
             return;
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdatePerson";
         cmd.Parameters.AddRange(_selectedPerson.GetSqlParameters());
@@ -184,7 +188,7 @@ public partial class PersonManagement : Form {
         TeamCombobox.BindingContext = new();
         SkillsListbox.DataSource = new BindingSource(_skills, null);
         SkillsListbox.DisplayMember = "Description";
-        SkillsListbox.ValueMember = "SlotTypeID";
+        SkillsListbox.ValueMember = "SkillID";
         RefreshBox();
     }
     #endregion

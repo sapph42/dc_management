@@ -22,30 +22,31 @@ public partial class TeamManagement : Form {
     private bool _boxDirty = false;
     #endregion
     public TeamManagement() {
-        Program.conn = new(Program.SqlConnectionString);
         InitializeComponent();
     }
     #region Internal Helper Functions
     #region Database Interaction
     private void LoadTeams() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = @"dbo.GetTeams";
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         using SqlDataReader reader = cmd.ExecuteReader();
         _teams = [];
-        if (reader.Read()) {
+        while (reader.Read()) {
             _teams.Add(reader.GetInt32(0), reader.GetString(1));
         }
         reader.Close();
     }
     private void GetLocations() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location";
-        cmd.Connection = Program.conn;
+        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location ORDER BY Name";
+        cmd.Connection = conn;
+        conn.Open();
         _locations = [];
         _locations.Add(new() {
             LocID = -1,
@@ -60,11 +61,12 @@ public partial class TeamManagement : Form {
         reader.Close();
     }
     private void GetPeople() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetPeople";
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         _people = [];
         _people.Add(new() {
             PersonID = -1,
@@ -79,13 +81,14 @@ public partial class TeamManagement : Form {
         reader.Close();
     }
     private void LoadTeamInfo(int teamID) {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active FROM dbo.GetTeamInfo(@TeamID)";
         cmd.Parameters.Add("@TeamID", SqlDbType.Int);
         cmd.Parameters["@TeamID"].Value = teamID;
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         using SqlDataReader reader = cmd.ExecuteReader();
         object[] row = new object[6];
         while (reader.Read()) {
@@ -95,9 +98,10 @@ public partial class TeamManagement : Form {
         reader.Close();
     }
     private void AddNewTeam() {
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertTeam";
         cmd.Parameters.Add("@Name", SqlDbType.VarChar);
@@ -117,9 +121,10 @@ public partial class TeamManagement : Form {
     private void UpdateTeam() {
         if (_selectedTeam is null)
             return;
-        Program.OpenConn();
+        using SqlConnection conn = new(Program.SqlConnectionString);;
         using SqlCommand cmd = new();
-        cmd.Connection = Program.conn;
+        cmd.Connection = conn;
+        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdateTeam";
         cmd.Parameters.AddRange(_selectedTeam.GetSqlParameters());
