@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 
 namespace DCManagement.Forms;
 public partial class DailyAssignment : Form {
-    private List<Skill> _slotTypes = [];
+    private List<Skill> _skills = [];
     private PersonCollection _people = [];
     private List<Team> _teams = [];
     private Team _float = new() {
@@ -136,15 +136,15 @@ public partial class DailyAssignment : Form {
         //ThereAreAvailableMoves
         //TODO Generate some kind of alert that not all teams could be filled
     }
-    private List<Person> GetDefaultSlotAssignments(int TeamID, int SlotTypeID) {
+    private List<Person> GetDefaultSlotAssignments(int TeamID, int SkillID) {
         Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetDefaultSlotAssignments";
         cmd.Parameters.Add("@TeamID", SqlDbType.Int);
         cmd.Parameters["@TeamID"].Value = TeamID;
-        cmd.Parameters.Add("@SlotType", SqlDbType.Int);
-        cmd.Parameters["@SlotType"].Value = SlotTypeID;
+        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
+        cmd.Parameters["@SkillID"].Value = SkillID;
         cmd.Connection = Program.conn;
         List<Person> members = [];
         using SqlDataReader reader = cmd.ExecuteReader();
@@ -202,6 +202,8 @@ public partial class DailyAssignment : Form {
             };
             if (dataRow[2] is not null)
                 newSkill.SetSlotColor((string)dataRow[2]);
+            if (dataRow[3] is not null)
+                newSkill.Priority = (int)dataRow[3];
             person.AddSkill(newSkill);
         }
         return person;
@@ -210,14 +212,15 @@ public partial class DailyAssignment : Form {
         Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = @"dbo.GetSlotTypes";
+        cmd.CommandText = "dbo.GetSkills";
         cmd.Connection = Program.conn;
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read()) {
-            _slotTypes.Add(new() {
+            _skills.Add(new() {
                 SkillID = reader.GetInt32(0),
                 Description = reader.GetString(1),
-                SlotColor = ColorTranslator.FromHtml(reader.GetString(2))
+                SlotColor = ColorTranslator.FromHtml(reader.GetString(2)),
+                Priority = reader.GetInt32(3)
             });
         }
         reader.Close();
@@ -244,13 +247,13 @@ public partial class DailyAssignment : Form {
         Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT SlotID, SlotType, MinQty, GoalQty FROM dbo.GetTeamSlots(@TeamID)";
+        cmd.CommandText = @"SELECT SlotID, SkillID, MinQty, GoalQty FROM dbo.GetTeamSlots(@TeamID)";
         cmd.Parameters.Add("@TeamID", SqlDbType.Int);
         cmd.Parameters["@TeamID"].Value = TeamID;
         cmd.Connection = Program.conn;
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read()) {
-            Skill thisSkill = _slotTypes.First(st => st.SkillID == reader.GetInt32(1));
+            Skill thisSkill = _skills.First(st => st.SkillID == reader.GetInt32(1));
             slots.Add(
                 new() {
                     SlotID = reader.GetInt32(0),
@@ -319,7 +322,7 @@ public partial class DailyAssignment : Form {
             for (int j = 0; j < team.Slots.Count; j++) {
                 Slot slot = team.Slots[j];
                 int slotTypeID = slot.SkillID;
-                slot.AssignSkillProperties(_slotTypes[slotTypeID]);
+                slot.AssignSkillProperties(_skills[slotTypeID]);
                 slot.Assigned = GetDefaultSlotAssignments((int)team.TeamID, slotTypeID);
                 team.Slots[j] = slot;
             }
@@ -548,13 +551,13 @@ public partial class DailyAssignment : Form {
                 assistants[0].Label = new() {
                     Text = assistants[0].LastName,
                     AutoSize = true,
-                    BackColor = _slotTypes.Where(s => s.Description == "Dental Assistant").First().SlotColor,
+                    BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
                     Tag = assistants[0]
                 };
                 assistants[1].Label = new() {
                     Text = assistants[1].LastName,
                     AutoSize = true,
-                    BackColor = _slotTypes.Where(s => s.Description == "Dental Assistant").First().SlotColor,
+                    BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
                     Tag = assistants[1]
                 };
                 int totalWidth = assistants[0].Label.Width + assistants[1].Label.Width;
@@ -568,7 +571,7 @@ public partial class DailyAssignment : Form {
                     efAssistant.Label = new() {
                         Text = efAssistant.LastName,
                         AutoSize = true,
-                        BackColor = _slotTypes.Where(s => s.Description == "EFDA").First().SlotColor,
+                        BackColor = _skills.Where(s => s.Description == "EFDA").First().SlotColor,
                         Tag = efAssistant
                     };
                     lastLabelLoc = new Point(centerX + efAssistant.Label.Width, lastLabelLoc.Y + 16);
@@ -579,7 +582,7 @@ public partial class DailyAssignment : Form {
                     assistant.Label = new() {
                         Text = assistant.LastName,
                         AutoSize = true,
-                        BackColor = _slotTypes.Where(s => s.Description == "Dental Assistant").First().SlotColor,
+                        BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
                         Tag = assistant
                     };
                     lastLabelLoc = new Point(centerX + assistant.Label.Width, lastLabelLoc.Y + 16);

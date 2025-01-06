@@ -6,7 +6,7 @@ namespace DCManagement.Forms;
 public partial class SlotAssignment : Form {
     #region Fields
     private readonly Team _team;
-    private readonly List<Skill> _slotTypes = [];
+    private readonly List<Skill> _skills = [];
 
     private bool _isRowDirty = false;
     private bool _inserting = false;
@@ -22,18 +22,19 @@ public partial class SlotAssignment : Form {
         Program.conn = new(Program.SqlConnectionString);
     }
     #region Database Interaction
-    private void GetSlotTypes() {
+    private void GetSkills() {
         Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = @"dbo.GetSlotTypes";
+        cmd.CommandText = "dbo.GetSkills";
         cmd.Connection = Program.conn;
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read()) {
-            _slotTypes.Add(new() {
+            _skills.Add(new() {
                 SkillID = reader.GetInt32(0),
                 Description = reader.GetString(1),
-                SlotColor = ColorTranslator.FromHtml(reader.GetString(2))
+                SlotColor = ColorTranslator.FromHtml(reader.GetString(2)),
+                Priority = reader.GetInt32(3)
             });
         }
         reader.Close();
@@ -42,16 +43,20 @@ public partial class SlotAssignment : Form {
         Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT SlotID, SlotType, MinQty, GoalQty FROM dbo.GetTeamSlots(@TeamID)";
+        cmd.CommandText = @"SELECT SlotID, SkillID, MinQty, GoalQty FROM dbo.GetTeamSlots(@TeamID)";
         cmd.Parameters.Add("@TeamID", SqlDbType.Int);
         cmd.Parameters["@TeamID"].Value = _team.TeamID;
         cmd.Connection = Program.conn;
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read()) {
+            Skill thisSkill = _skills.First(st => st.SkillID == reader.GetInt32(1));
             Slots.Add(
                 new() {
                     SlotID = reader.GetInt32(0),
-                    Skill = _slotTypes.First(st => st.SkillID == reader.GetInt32(1)),
+                    SkillID = thisSkill.SkillID,
+                    Description = thisSkill.Description,
+                    SlotColor = thisSkill.SlotColor,
+                    Priority = thisSkill.Priority,
                     MinQty = reader.GetInt32(2),
                     GoalQty = reader.GetInt32(3)
                 }
@@ -65,11 +70,11 @@ public partial class SlotAssignment : Form {
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertTeamSlot";
         cmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        cmd.Parameters.Add("@SlotType", SqlDbType.Int);
+        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
         cmd.Parameters.Add("@MinQty", SqlDbType.Int);
         cmd.Parameters.Add("@GoalQty", SqlDbType.Int);
         cmd.Parameters["@TeamID"].Value = _team.TeamID;
-        cmd.Parameters["@SlotType"].Value = row.Cells[1].Value;
+        cmd.Parameters["@SkillID"].Value = row.Cells[1].Value;
         cmd.Parameters["@MinQty"].Value = row.Cells[2].Value;
         cmd.Parameters["@GoalQty"].Value = row.Cells[3].Value;
         cmd.Connection = Program.conn;
@@ -82,12 +87,12 @@ public partial class SlotAssignment : Form {
         cmd.CommandText = "dbo.UpdateTeamSlot";
         cmd.Parameters.Add("@SlotID", SqlDbType.Int);
         cmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        cmd.Parameters.Add("@SlotType", SqlDbType.Int);
+        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
         cmd.Parameters.Add("@MinQty", SqlDbType.Int);
         cmd.Parameters.Add("@GoalQty", SqlDbType.Int);
         cmd.Parameters["@SlotID"].Value = row.Cells[0].Value;
         cmd.Parameters["@TeamID"].Value = _team.TeamID;
-        cmd.Parameters["@SlotType"].Value = row.Cells[1].Value;
+        cmd.Parameters["@SkillID"].Value = row.Cells[1].Value;
         cmd.Parameters["@MinQty"].Value = row.Cells[2].Value;
         cmd.Parameters["@GoalQty"].Value = row.Cells[3].Value;
         cmd.Connection = Program.conn;
@@ -106,9 +111,9 @@ public partial class SlotAssignment : Form {
     #endregion
     #region Form Event Handlers
     private void SlotAssignment_Load(object sender, EventArgs e) {
-        GetSlotTypes();
+        GetSkills();
         GetTeamSlots();
-        SlotTypeColumn.DataSource = _slotTypes;
+        SlotTypeColumn.DataSource = _skills;
         SlotTypeColumn.DisplayMember = "Description";
         SlotTypeColumn.ValueMember = "SlotTypeID";
         foreach (var slot in Slots) {
@@ -128,7 +133,7 @@ public partial class SlotAssignment : Form {
             row.Cells[0].Value = newSlotID;
             Slots.Add(new() {
                 SlotID = newSlotID,
-                Skill = _slotTypes.First(st => st.SkillID == (int)row.Cells[1].Value),
+                Skill = _skills.First(st => st.SkillID == (int)row.Cells[1].Value),
                 MinQty = Int32.Parse((string)row.Cells[2].Value),
                 GoalQty = Int32.Parse((string)row.Cells[3].Value)
             });
@@ -144,7 +149,7 @@ public partial class SlotAssignment : Form {
                 continue;
             Slots[i] = new() {
                 SlotID = slotID,
-                Skill = _slotTypes.First(st => st.SkillID == (int)row.Cells[1].Value),
+                Skill = _skills.First(st => st.SkillID == (int)row.Cells[1].Value),
                 MinQty = Int32.Parse((string)row.Cells[2].Value),
                 GoalQty = Int32.Parse((string)row.Cells[3].Value)
             };

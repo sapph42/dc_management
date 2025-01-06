@@ -13,7 +13,7 @@ using System.Windows.Forms;
 namespace DCManagement.Forms;
 public partial class PersonManagement : Form {
     private PersonCollection _people = [];
-    private readonly List<Skill> _slotTypes = [];
+    private readonly List<Skill> _skills = [];
     private Dictionary<int, string> _teams = [];
     private bool _inserting = false;
     private Person? _selectedPerson;
@@ -34,7 +34,7 @@ public partial class PersonManagement : Form {
             Skills = []
         };
         foreach (object skill in SkillsListbox.CheckedItems) {
-            newPerson.Skills.Add(_slotTypes.First(s => s.Equals(skill)));
+            newPerson.Skills.Add(_skills.First(s => s.Equals(skill)));
         }
 
         Program.OpenConn();
@@ -51,7 +51,7 @@ public partial class PersonManagement : Form {
         cmd.Parameters.Add("@SkillID", SqlDbType.Int);
         cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
         cmd.Parameters["@PersonID"].Value = newPerson.PersonID;
-        foreach (Skill st in _slotTypes) {
+        foreach (Skill st in _skills) {
             cmd.Parameters["@SkillID"].Value = st.SkillID;
             cmd.Parameters["@IsSet"].Value = newPerson.Skills.Contains(st);
             _ = cmd.ExecuteNonQuery();
@@ -74,18 +74,19 @@ public partial class PersonManagement : Form {
         }
         reader.Close();
     }
-    private void GetSlotTypes() {
+    private void GetSkills() {
         Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = @"dbo.GetSlotTypes";
+        cmd.CommandText = "dbo.GetSkills";
         cmd.Connection = Program.conn;
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read()) {
-            _slotTypes.Add(new() {
+            _skills.Add(new() {
                 SkillID = reader.GetInt32(0),
                 Description = reader.GetString(1),
-                SlotColor = ColorTranslator.FromHtml(reader.GetString(2))
+                SlotColor = ColorTranslator.FromHtml(reader.GetString(2)),
+                Priority = reader.GetInt32(3)
             });
         }
         reader.Close();
@@ -116,6 +117,8 @@ public partial class PersonManagement : Form {
             };
             if (row[2] is not null)
                 newSkill.SetSlotColor((string)row[2]);
+            if (row[3] is not null)
+                newSkill.Priority = (int)row[3];
             _selectedPerson.AddSkill(newSkill);
         }
     }
@@ -123,7 +126,7 @@ public partial class PersonManagement : Form {
         Program.OpenConn();
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = @"dbo.GetTeams";
+        cmd.CommandText = "dbo.GetTeams";
         cmd.Connection = Program.conn;
         using SqlDataReader reader = cmd.ExecuteReader();
         _teams = [];
@@ -162,7 +165,7 @@ public partial class PersonManagement : Form {
         cmd.Parameters.Add("@SkillID", SqlDbType.Int);
         cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
         cmd.Parameters["@PersonID"].Value = _selectedPerson.PersonID;
-        foreach (Skill st in _slotTypes) {
+        foreach (Skill st in _skills) {
             cmd.Parameters["@SkillID"].Value = st.SkillID;
             cmd.Parameters["@IsSet"].Value = _selectedPerson.Skills.Contains(st);
             _ = cmd.ExecuteNonQuery();
@@ -174,12 +177,12 @@ public partial class PersonManagement : Form {
     #region Form Event Handlers
     private void PersonManagement_Load(object sender, EventArgs e) {
         LoadTeams();
-        GetSlotTypes();
+        GetSkills();
         TeamCombobox.DataSource = new BindingSource(_teams, null);
         TeamCombobox.DisplayMember = "Value";
         TeamCombobox.ValueMember = "Key";
         TeamCombobox.BindingContext = new();
-        SkillsListbox.DataSource = new BindingSource(_slotTypes, null);
+        SkillsListbox.DataSource = new BindingSource(_skills, null);
         SkillsListbox.DisplayMember = "Description";
         SkillsListbox.ValueMember = "SlotTypeID";
         RefreshBox();
@@ -227,7 +230,7 @@ public partial class PersonManagement : Form {
             _selectedPerson.Available = AvailableCheckbox.Checked;
             _selectedPerson.Skills = [];
             foreach (object skill in SkillsListbox.CheckedItems) {
-                _selectedPerson.Skills.Add(_slotTypes.First(s => s.Equals(skill)));
+                _selectedPerson.Skills.Add(_skills.First(s => s.Equals(skill)));
             }
             UpdatePerson();
         } else if (_inserting) {
