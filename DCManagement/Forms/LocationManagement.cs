@@ -34,6 +34,7 @@ namespace DCManagement.Forms {
             InitializeComponent();
             _floorplan = new Floorplan() {
                 Locations = LocationCollection.GetLocations(),
+                Client = this
             };
             _maxSize = new() {
                 Height = ClientSize.Height,
@@ -124,7 +125,6 @@ namespace DCManagement.Forms {
                 }
                 BackgroundImageLayout = ImageLayout.Stretch;
             }
-            _floorplan.ClientSize = this.ClientSize;
         }
         #endregion
         #region Form Event Handlers

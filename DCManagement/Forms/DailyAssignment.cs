@@ -23,6 +23,7 @@ public partial class DailyAssignment : Form {
         InitializeComponent();
         _floorplan = new Floorplan() {
             Locations = LocationCollection.GetLocations(),
+            Client = this
         };
         _maxSize = new() {
             Height = ClientSize.Height,
@@ -391,7 +392,6 @@ public partial class DailyAssignment : Form {
             }
             BackgroundImageLayout = ImageLayout.Stretch;
         }
-        _floorplan.ClientSize = this.ClientSize;
     }
     #region Form Event Handlers
     private void DailyAssignment_DragDrop(object sender, DragEventArgs e) {
