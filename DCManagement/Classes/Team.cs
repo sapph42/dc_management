@@ -140,4 +140,7 @@ public class Team {
             .Assigned
             .Add(person);
     }
+    public override string ToString() {
+        return TeamName;
+    }
 }

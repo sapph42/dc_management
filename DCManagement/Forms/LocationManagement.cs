@@ -135,7 +135,7 @@ namespace DCManagement.Forms {
         }
         private void LocationManagement_FormClosing(object sender, FormClosingEventArgs e) { }
         private void LocationManagement_MouseDown(object sender, MouseEventArgs e) {
-            _lastClick = _floorplan.AdjustPointForScaling(e.Location);
+            _lastClick = _floorplan.TransformCoordinatesInv(e.Location);
             Debug.WriteLine($"MouseDown @ {e.X},{e.Y}, Adjusted {_lastClick.X},{_lastClick.Y}; Button: {e.Button}, " +
                 $"ActionAllowed: {_actionAllowed}, ActionState: {_actionState}, " +
                 $"PendingLocation: {(_pendingLocation is null ? "IsNull" : "IsNotNull")} " +
@@ -171,7 +171,7 @@ namespace DCManagement.Forms {
             }
         }
         private void LocationManagement_MouseUp(object sender, MouseEventArgs e) {
-            Point click = _floorplan.AdjustPointForScaling(e.Location);
+            Point click = _floorplan.TransformCoordinatesInv(e.Location);
             Debug.WriteLine($"MouseUp @ {e.X},{e.Y}, Adjusted {click.X},{click.Y}; Button: {e.Button}, " +
                 $"ActionAllowed: {_actionAllowed}, ActionState: {_actionState}, " +
                 $"PendingLocation: {(_pendingLocation is null ? "IsNull" : "IsNotNull")} " +
@@ -239,7 +239,7 @@ namespace DCManagement.Forms {
                     }
                     BackgroundImage = _floorplan.DrawNewRectangle(rect);
                     _actionState = ActionState.NamingNew;
-                    NameEditTextbox.Location = _floorplan.AdjustPointforScalingInverse(new(_pendingLocation.CenterLeft.X - 10, _pendingLocation.CenterLeft.Y));
+                    NameEditTextbox.Location = _floorplan.TransformCoordinates(new(_pendingLocation.CenterLeft.X - 10, _pendingLocation.CenterLeft.Y));
                     NameEditTextbox.Text = "";
                     NameEditTextbox.Visible = true;
                     NameEditTextbox.BringToFront();
@@ -262,7 +262,7 @@ namespace DCManagement.Forms {
                         CancelActionStates();
                         return;
                     }
-                    Point current = _floorplan.AdjustPointForScaling(e.Location);
+                    Point current = _floorplan.TransformCoordinatesInv(e.Location);
                     rect = new() {
                         Location = current,
                         Size = _lastClickLocation.Size
@@ -274,7 +274,7 @@ namespace DCManagement.Forms {
                         CancelActionStates();
                         return;
                     }
-                    Point second = _floorplan.AdjustPointForScaling(e.Location);
+                    Point second = _floorplan.TransformCoordinatesInv(e.Location);
                     Location? loc = _floorplan.Locations.FindByPoint(second);
                     if (loc is not null) {
                         TeamTooltip.Active = true;
@@ -417,7 +417,7 @@ namespace DCManagement.Forms {
             CancelActionStates(true);
             CancelPendingActionToolStripMenuItem.Visible = true;
             _actionState = ActionState.Renaming;
-            NameEditTextbox.Location = _floorplan.AdjustPointforScalingInverse(new(_lastClickLocation.CenterLeft.X - 10, _lastClickLocation.CenterLeft.Y));
+            NameEditTextbox.Location = _floorplan.TransformCoordinates(new(_lastClickLocation.CenterLeft.X - 10, _lastClickLocation.CenterLeft.Y));
             NameEditTextbox.Text = "";
             NameEditTextbox.Visible = true;
             NameEditTextbox.BringToFront();

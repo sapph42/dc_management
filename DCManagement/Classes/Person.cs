@@ -120,4 +120,7 @@ public class Person {
         Skills.Clear();
         Skills.AddRange(values);
     }
+    public override string ToString() {
+        return FullName; 
+    }
 }

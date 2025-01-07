@@ -195,6 +195,7 @@ public partial class PersonManagement : Form {
     #region Control Event Handlers
     private void EmployeeListbox_SelectedIndexChanged(object sender, EventArgs e) {
         int personID = ((KeyValuePair<int, string>)EmployeeListbox.Items[EmployeeListbox.SelectedIndex]).Key;
+        _inserting = false;
         LoadPersonInfo(personID);
         if (_selectedPerson is null)
             return;

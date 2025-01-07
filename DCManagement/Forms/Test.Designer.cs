@@ -1,5 +1,5 @@
 ﻿namespace DCManagement.Forms {
-    partial class DailyAssignment {
+    partial class Test {
         /// <summary>
         /// Required designer variable.
         /// </summary>
@@ -25,10 +25,11 @@
         private void InitializeComponent() {
             EditMenu = new MenuStrip();
             EditTSMI = new ToolStripMenuItem();
+            SetClinicFloorplanTSMI = new ToolStripMenuItem();
+            DrawNewLocationTSMI = new ToolStripMenuItem();
             MouseCoordTSMI = new ToolStripMenuItem();
             AlertMessagesTSMI = new ToolStripMenuItem();
             CancelPendingActionToolStripMenuItem = new ToolStripMenuItem();
-            RefreshToolStripMenuItem = new ToolStripMenuItem();
             EditMenu.SuspendLayout();
             SuspendLayout();
             // 
@@ -37,16 +38,29 @@
             EditMenu.Items.AddRange(new ToolStripItem[] { EditTSMI, MouseCoordTSMI, AlertMessagesTSMI, CancelPendingActionToolStripMenuItem });
             EditMenu.Location = new Point(0, 0);
             EditMenu.Name = "EditMenu";
-            EditMenu.Size = new Size(1596, 24);
-            EditMenu.TabIndex = 1;
+            EditMenu.Size = new Size(800, 24);
+            EditMenu.TabIndex = 2;
             EditMenu.Text = "Edit";
             // 
             // EditTSMI
             // 
-            EditTSMI.DropDownItems.AddRange(new ToolStripItem[] { RefreshToolStripMenuItem });
+            EditTSMI.DropDownItems.AddRange(new ToolStripItem[] { SetClinicFloorplanTSMI, DrawNewLocationTSMI });
             EditTSMI.Name = "EditTSMI";
             EditTSMI.Size = new Size(39, 20);
             EditTSMI.Text = "Edit";
+            EditTSMI.Visible = false;
+            // 
+            // SetClinicFloorplanTSMI
+            // 
+            SetClinicFloorplanTSMI.Name = "SetClinicFloorplanTSMI";
+            SetClinicFloorplanTSMI.Size = new Size(177, 22);
+            SetClinicFloorplanTSMI.Text = "Set Clinic Floorplan";
+            // 
+            // DrawNewLocationTSMI
+            // 
+            DrawNewLocationTSMI.Name = "DrawNewLocationTSMI";
+            DrawNewLocationTSMI.Size = new Size(177, 22);
+            DrawNewLocationTSMI.Text = "Draw New Location";
             // 
             // MouseCoordTSMI
             // 
@@ -67,26 +81,16 @@
             CancelPendingActionToolStripMenuItem.Text = "Cancel";
             CancelPendingActionToolStripMenuItem.Visible = false;
             // 
-            // RefreshToolStripMenuItem
+            // Test
             // 
-            RefreshToolStripMenuItem.Name = "RefreshToolStripMenuItem";
-            RefreshToolStripMenuItem.Size = new Size(180, 22);
-            RefreshToolStripMenuItem.Text = "Refresh";
-            RefreshToolStripMenuItem.Click += RefreshToolStripMenuItem_Click;
-            // 
-            // DailyAssignment
-            // 
-            AllowDrop = true;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1596, 742);
+            ClientSize = new Size(800, 450);
             Controls.Add(EditMenu);
-            Name = "DailyAssignment";
-            Text = "DailyAssignment";
-            Load += DailyAssignment_Load;
-            DragDrop += DailyAssignment_DragDrop;
-            DragOver += DailyAssignment_DragOver;
-            MouseMove += DailyAssignment_MouseMove;
+            Name = "Test";
+            Text = "Test";
+            MouseMove += Test_MouseMove;
+            MouseUp += Test_MouseUp;
             EditMenu.ResumeLayout(false);
             EditMenu.PerformLayout();
             ResumeLayout(false);
@@ -97,9 +101,10 @@
 
         private MenuStrip EditMenu;
         private ToolStripMenuItem EditTSMI;
+        private ToolStripMenuItem SetClinicFloorplanTSMI;
+        private ToolStripMenuItem DrawNewLocationTSMI;
         private ToolStripMenuItem MouseCoordTSMI;
         private ToolStripMenuItem AlertMessagesTSMI;
         private ToolStripMenuItem CancelPendingActionToolStripMenuItem;
-        private ToolStripMenuItem RefreshToolStripMenuItem;
     }
 }
