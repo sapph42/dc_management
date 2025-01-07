@@ -7,7 +7,12 @@ public class Floorplan {
     public Image? ImageWithLocations { get; set; }
     public Image? ImageMoving { get; set; }
     public LocationCollection Locations { get; set; } = [];
-    public Size ClientSize { get; set; }
+    public required Form Client { get; set; }
+    public Size ClientSize { 
+        get {
+            return Client.Size;
+        }
+    }
     public Size ImageSize { 
         get {
             return BaseImage?.Size ?? new Size();
