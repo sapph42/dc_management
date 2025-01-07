@@ -27,6 +27,7 @@
             PersonButton = new Button();
             TeamButton = new Button();
             DailyButton = new Button();
+            button1 = new Button();
             SuspendLayout();
             // 
             // LocationButton
@@ -69,11 +70,22 @@
             DailyButton.UseVisualStyleBackColor = true;
             DailyButton.Click += DailyButton_Click;
             // 
+            // button1
+            // 
+            button1.Location = new Point(356, 228);
+            button1.Name = "button1";
+            button1.Size = new Size(75, 23);
+            button1.TabIndex = 4;
+            button1.Text = "Test";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
+            // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(button1);
             Controls.Add(DailyButton);
             Controls.Add(TeamButton);
             Controls.Add(PersonButton);
@@ -89,5 +101,6 @@
         private Button PersonButton;
         private Button TeamButton;
         private Button DailyButton;
+        private Button button1;
     }
 }

@@ -33,5 +33,10 @@ namespace DCManagement.Forms {
             DailyAssignment dailyAssignment = new();
             dailyAssignment.Show();
         }
+
+        private void button1_Click(object sender, EventArgs e) {
+            Test test = new();
+            test.Show();
+        }
     }
 }

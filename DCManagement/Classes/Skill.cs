@@ -22,4 +22,7 @@ public class Skill {
     public void SetSlotColor (string ColorHex) {
         SlotColor = ColorTranslator.FromHtml ("#" + ColorHex);
     }
+    public override string ToString() {
+        return Description;
+    }
 }

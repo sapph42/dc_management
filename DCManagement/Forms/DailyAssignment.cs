@@ -36,7 +36,17 @@ public partial class DailyAssignment : Form {
     #region Data Methods
     private void FillGoalSlots(int SkillID) {
         //First try and fill all teams to goal staffing from float
-        List<Team> teamsToFill = [.. _teams.Where(t => !t.HasGoalStaffing() && t.HighestPriorityNeed() == SkillID)];
+        List<Team> teamsToFill = [.. _teams.Where(
+            t => !t.HasGoalStaffing() && (
+                (
+                    !t.FillIfNoLead && t.TeamLead is not null
+                ) ||
+                (
+                    t.FillIfNoLead
+                )
+            ) &&
+            t.HighestPriorityNeed() == SkillID
+        )];
         for (int i = 0; i < teamsToFill.Count; i++) {
             Team team = teamsToFill[i];
             if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.Available)
@@ -291,10 +301,22 @@ public partial class DailyAssignment : Form {
         return slots;
     }
     private void MoveUnassignedToFloat() {
-        List<Team> defuctTeams = [.. _teams.Where(t => !t.FillIfNoLead && t.TeamLead is null)];
-        foreach (var team in defuctTeams) {
-            foreach (var slot in team.Slots) {
-                foreach (var floater in slot.Assigned){
+        Func<Team, bool> leadTeamsMissingLeads = t =>
+            !t.FillIfNoLead &&
+            t.TeamLead is not null &&
+            (!t.TeamLead.Active || !t.TeamLead.Available) &&
+            t.TeamName != "Float";
+        Func<Team, bool> unleadTeamsMissingLeads = t =>
+            !t.FillIfNoLead &&
+            t.TeamLead is null &&
+            t.TeamName != "Float";
+        List<Team> defuctTeams = [.. _teams.Where(t => leadTeamsMissingLeads(t) || unleadTeamsMissingLeads(t))];
+        for (int defunctIterator = 0; defunctIterator < defuctTeams.Count; defunctIterator++) {
+            Team team = defuctTeams[defunctIterator];
+            for (int slotIterator = 0; slotIterator < team.Slots.Count; slotIterator++) {
+                Slot slot = team.Slots[slotIterator];
+                for (int personIterator = 0; personIterator < slot.Assigned.Count; personIterator++) {
+                    Person floater = slot.Assigned[personIterator];
                     if (floater.Team is null)
                         _float.AssignPerson(floater, slot.SkillID);
                     else
@@ -375,20 +397,22 @@ public partial class DailyAssignment : Form {
     private void ResizeForm() {
         Size imageSize = _floorplan.ImageSize;
         float aspectRatio = (float)imageSize.Width / (float)imageSize.Height;
-        if (imageSize.Width <= _maxSize.Width && imageSize.Height <= _maxSize.Height) {
-            Size = imageSize;
+        Size adjustment = new(Width - ClientSize.Width, Height - ClientSize.Height);
+        Size maxClientSize = new(_maxSize.Width - adjustment.Width, _maxSize.Height - adjustment.Height);
+        if (imageSize.Width <= maxClientSize.Width && imageSize.Height <= maxClientSize.Height) {
+            Size = imageSize + adjustment;
             BackgroundImageLayout = ImageLayout.Center;
         } else {
             if (aspectRatio >= 1) {
                 Size = new Size() {
-                    Width = _maxSize.Width,
-                    Height = (int)(_maxSize.Width / aspectRatio)
-                };
+                    Width = maxClientSize.Width,
+                    Height = (int)(maxClientSize.Width / aspectRatio)
+                } + adjustment;
             } else {
                 Size = new Size() {
-                    Width = (int)(_maxSize.Height * aspectRatio),
-                    Height = _maxSize.Height
-                };
+                    Width = (int)(maxClientSize.Height * aspectRatio),
+                    Height = maxClientSize.Height
+                } + adjustment;
             }
             BackgroundImageLayout = ImageLayout.Stretch;
         }
@@ -466,6 +490,18 @@ public partial class DailyAssignment : Form {
         }
         AddLabels();
     }
+    private void DailyAssignment_MouseMove(object sender, MouseEventArgs e) {
+        MouseCoordTSMI.Text = $"{e.X},{e.Y}";
+    }
+    #endregion
+    #region Control Event Handlers
+    private void RefreshToolStripMenuItem_Click(object sender, EventArgs e) {
+        foreach (var team in _teams) {
+            team.LabelPattern = DetermineTeamPattern(team);
+            DeleteLables(team);
+            CreateLabels(team);
+        }
+    }
     #endregion
     #region Label Event Handlers
     private void SlotLabel_MouseDown(object? sender, MouseEventArgs e) {
@@ -475,10 +511,9 @@ public partial class DailyAssignment : Form {
                 DoDragDrop(label, DragDropEffects.Move);
         }
     }
-
     #endregion
     #region Draw People
-    private LabelPattern DetermineTeamPattern(Team team) {
+    private static LabelPattern DetermineTeamPattern(Team team) {
         if (team.TeamLead is null) {
             int assignedToTeam = team.Slots.Select(s => s.Assigned.Count).Sum();
             if (assignedToTeam == 0)
@@ -516,46 +551,88 @@ public partial class DailyAssignment : Form {
         if (team.CurrentAssignment is null && team.PrimaryLocation is null)
             return;
         Rectangle rect = team.CurrentAssignment?.Rect ?? team.PrimaryLocation!.Rect;
-        Point topLeft = _floorplan.AdjustPointforScalingInverse(rect.Location);
+        rect = _floorplan.TransformRectangle(rect);
+        Point topLeft = rect.Location;
         int centerX = topLeft.X + rect.Width / 2;
-        int topY = topLeft.Y + 10;
+        int topY = topLeft.Y + (int)(10 * _floorplan.GetScale().Y);
         Point lastLabelLoc = new(0, topY);
         switch (team.LabelPattern) {
             case LabelPattern.None:
                 return;
+            case LabelPattern.MultiStacked:
+                SuspendLayout();
+                int stackCount = team.Slots.SelectMany(s => s.Assigned).Where(p => p is not null).Count();
+                var slots = team.Slots.Select(s => new KeyValuePair<Slot, List<Person>>(s, s.Assigned)).ToList();
+                if (stackCount == 0)
+                    break;
+                int firstY = topY + 16;
+                int lastY = rect.Bottom - 26;
+                int spacing = (stackCount > 1) ? (lastY - firstY) / (stackCount - 1) : 0;
+                for (int i = 0; i < slots.Count; i++) {
+                    var slot = slots[i];
+                    var slotInfo = slot.Key;
+                    for (int j = 0; j < slot.Value.Count; j++) {
+                        var person = slot.Value[j];
+                        person.Label = new() {
+                            Text = $"{person.LastName}, {person.FirstName[..1]}.",
+                            AutoSize = true,
+                            BackColor = slotInfo.SlotColor,
+                            Tag = person,
+                            Width = 1,
+                            Location = new Point(0, 0)
+                        };
+                        Controls.Add(person.Label);
+                        person.Label.PerformLayout();
+                        int currentY = firstY + (spacing * (i + 1) * j);
+                        lastLabelLoc = new() {
+                            X = centerX - (person.Label.Width / 2),
+                            Y = currentY
+                        };
+                        person.Label.Location = lastLabelLoc;
+                        _labels.Add(person.Label);
+                    }
+                }
+                break;
             case LabelPattern.Single:
             case LabelPattern.SingleAsst:
-            case LabelPattern.MultiStacked:
             case LabelPattern.SingleAsstwEFDA:
+                SuspendLayout();
                 if (team.TeamLead is not null && team.TeamLead.Available) {
                     team.TeamLead.Label = new() {
-                        Text = $"1{team.TeamLead.LastName}, {team.TeamLead.FirstName.Substring(0, 1)}. {team.CurrentAssignment?.Name} ",
+                        Text = $"{team.TeamLead.LastName}, {team.TeamLead.FirstName[..1]}.",
                         AutoSize = true,
                         BackColor = team.TeamLead.Skills.OrderByDescending(s => s.Priority).First().SlotColor,
-                        Tag = team
+                        Tag = team,
+                        BorderStyle = BorderStyle.FixedSingle,
+                        Width = 1,
+                        Location = new Point(0,0)
                     };
+                    Controls.Add(team.TeamLead.Label);
+                    team.TeamLead.Label.PerformLayout();
                     lastLabelLoc = new() {
-                        X = centerX + (team.TeamLead.Label.Width / 2),
+                        X = centerX - (team.TeamLead.Label.Width / 2),
                         Y = lastLabelLoc.Y + 16
                     };
                     team.TeamLead.Label.Location = lastLabelLoc;
-                    team.TeamLead.Label.Text += $"{team.TeamLead.Label.Location.X}:{team.TeamLead.Label.Location.Y}";
                     _labels.Add(team.TeamLead.Label);
                     foreach (var slot in team.Slots) {
                         foreach (var person in slot.Assigned.Except([team.TeamLead])) {
                             if (person is null) continue;
                             person.Label = new() {
-                                Text = $"2{person.LastName}, {person.FirstName.Substring(0, 1)}. {team.CurrentAssignment?.Name} ",
+                                Text = $"{person.LastName}, {person.FirstName[..1]}.",
                                 AutoSize = true,
                                 BackColor = slot.SlotColor,
-                                Tag = person
+                                Tag = person,
+                                Width = 1,
+                                Location = new Point(0, 0)
                             };
+                            Controls.Add(person.Label);
+                            person.Label.PerformLayout();
                             lastLabelLoc = new() {
-                                X = centerX + (person.Label.Width / 2),
+                                X = centerX - (person.Label.Width / 2),
                                 Y = lastLabelLoc.Y + 16
                             };
                             person.Label.Location = lastLabelLoc;
-                            person.Label.Text += $"{person.Label.Location.X}:{person.Label.Location.Y}";
                             _labels.Add(person.Label);
                         }
                     }
@@ -564,17 +641,20 @@ public partial class DailyAssignment : Form {
                         foreach (var person in slot.Assigned) {
                             if (person is null) continue;
                             person.Label = new() {
-                                Text = $"3{person.LastName}, {person.FirstName.Substring(0, 1)}. {team.CurrentAssignment?.Name}  ",
+                                Text = $"{person.LastName}, {person.FirstName[..1]}.",
                                 AutoSize = true,
                                 BackColor = slot.SlotColor,
-                                Tag = person
+                                Tag = person,
+                                Width = 1,
+                                Location = new Point(0, 0)
                             };
+                            Controls.Add(person.Label);
+                            person.Label.PerformLayout();
                             lastLabelLoc = new() {
-                                X = centerX + (person.Label.Width / 2),
+                                X = centerX - (person.Label.Width / 2),
                                 Y = lastLabelLoc.Y + 16
                             };
                             person.Label.Location = lastLabelLoc;
-                            person.Label.Text += $"{person.Label.Location.X}:{person.Label.Location.Y}";
                             _labels.Add(person.Label);
                         }
                     }
@@ -584,15 +664,19 @@ public partial class DailyAssignment : Form {
             case LabelPattern.DualAsstPlus:
             case LabelPattern.DualAsstwEFDA:
             case LabelPattern.DualAsstwEFDAPlus:
+                SuspendLayout();
                 team.TeamLead!.Label = new() {
                     Text = team.TeamLead.LastName,
                     AutoSize = true,
                     BackColor = team.TeamLead.Skills.OrderByDescending(s => s.Priority).First().SlotColor,
-                    Tag = team
+                    Tag = team,
+                    Width = 1,
+                    Location = new Point(0, 0)
                 };
-                team.TeamLead.Label.MouseDown += SlotLabel_MouseDown;
+                Controls.Add(team.TeamLead.Label);
+                team.TeamLead.Label.PerformLayout();
                 lastLabelLoc = new() {
-                    X = centerX + (team.TeamLead.Label.Width / 2),
+                    X = centerX - (team.TeamLead.Label.Width / 2),
                     Y = lastLabelLoc.Y + 16
                 };
                 team.TeamLead.Label.Location = lastLabelLoc;
@@ -609,58 +693,71 @@ public partial class DailyAssignment : Form {
                     .SelectMany(s => s.Assigned)
                     .Except([team.TeamLead])
                     .Except(assistants)
-                    .First();
+                    .FirstOrDefault<Person>();
                 assistants[0].Label = new() {
-                    Text = assistants[0].LastName,
+                    Text = $"{assistants[0].LastName}, {assistants[0].FirstName[..1]}.",
                     AutoSize = true,
                     BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
-                    Tag = assistants[0]
+                    Tag = assistants[0],
+                    Width = 1,
+                    Location = new Point(0, 0)
                 };
                 assistants[1].Label = new() {
-                    Text = assistants[1].LastName,
+                    Text = $"{assistants[1].LastName}, {assistants[1].FirstName[..1]}.",
                     AutoSize = true,
                     BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
-                    Tag = assistants[1]
+                    Tag = assistants[1],
+                    Width = 1,
+                    Location = new Point(0, 0)
                 };
-                int totalWidth = assistants[0].Label.Width + assistants[1].Label.Width;
+                Controls.Add(assistants[0].Label);
+                assistants[0].Label.PerformLayout();
+                Controls.Add(assistants[1].Label);
+                assistants[1].Label.PerformLayout();
+                int totalWidth = assistants[0].Label.Width + assistants[1].Label.Width + 5;
                 int startX = centerX - (totalWidth / 2);
                 assistants[0].Label!.Location = new Point(startX, lastLabelLoc.Y + 16);
-                lastLabelLoc = new Point(startX + assistants[0].Label!.Width, lastLabelLoc.Y + 16);
+                lastLabelLoc = new Point(startX + assistants[0].Label!.Width + 5, lastLabelLoc.Y + 16);
                 assistants[1].Label!.Location = lastLabelLoc;
                 _labels.Add(assistants[0].Label);
                 _labels.Add(assistants[1].Label);
                 if (efAssistant is not null) {
                     efAssistant.Label = new() {
-                        Text = $"4{efAssistant.LastName}, {efAssistant.FirstName.Substring(0, 1)}. {team.CurrentAssignment?.Name} ",
+                        Text = $"{efAssistant.LastName}, {efAssistant.FirstName[..1]}.",
                         AutoSize = true,
                         BackColor = _skills.Where(s => s.Description == "EFDA").First().SlotColor,
-                        Tag = efAssistant
+                        Tag = efAssistant,
+                        Width = 1,
+                        Location = new Point(0, 0)
                     };
-                    lastLabelLoc = new Point(centerX + efAssistant.Label.Width, lastLabelLoc.Y + 16);
+                    Controls.Add(efAssistant.Label);
+                    efAssistant.Label.PerformLayout();
+                    lastLabelLoc = new Point(centerX - efAssistant.Label.Width / 2, lastLabelLoc.Y + 16);
                     efAssistant.Label.Location = lastLabelLoc;
-                    efAssistant.Label.Text += $"{efAssistant.Label.Location.X}:{efAssistant.Label.Location.Y}";
                     _labels.Add(efAssistant.Label);
                 }
                 foreach (var assistant in assistants[2..]) {
                     assistant.Label = new() {
-                        Text = $"5{assistant.LastName}, {assistant.FirstName.Substring(0, 1)}. {team.CurrentAssignment?.Name} ",
+                        Text = $"{assistant.LastName}, {assistant.FirstName[..1]}.",
                         AutoSize = true,
                         BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
-                        Tag = assistant
+                        Tag = assistant,
+                        Width = 1,
+                        Location = new Point(0, 0)
                     };
-                    lastLabelLoc = new Point(centerX + assistant.Label.Width, lastLabelLoc.Y + 16);
+                    Controls.Add(assistant.Label);
+                    assistant.Label.PerformLayout();
+                    lastLabelLoc = new Point(centerX - assistant.Label.Width / 2, lastLabelLoc.Y + 16);
                     assistant.Label.Location = lastLabelLoc;
-                    assistant.Label.Text += $"{assistant.Label.Location.X}:{assistant.Label.Location.Y}";
                     _labels.Add(assistant.Label);
                 }
                 break;
             default:
                 return;
         }
-        SuspendLayout();
+
         foreach (var slotLabel in team.Slots.SelectMany(s => s.Assigned).Select(p => p.Label)) {
             slotLabel.MouseDown += SlotLabel_MouseDown;
-            Controls.Add(slotLabel);
         }
         ResumeLayout();
     }
@@ -679,8 +776,4 @@ public partial class DailyAssignment : Form {
         }
     }
     #endregion
-
-    private void DailyAssignment_MouseMove(object sender, MouseEventArgs e) {
-        MouseCoordTSMI.Text = $"{e.X},{e.Y}";
-    }
 }

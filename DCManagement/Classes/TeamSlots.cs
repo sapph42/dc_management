@@ -17,7 +17,7 @@ public class TeamSlots : List<Slot> {
     }
     public int[] AvailableSlotsForGoal {
         get {
-            return this.Where(ts => ts.HasGoal).Select(ts => ts.SkillID).ToArray();
+            return this.Where(ts => ts.HasAvailableForGoal).Select(ts => ts.SkillID).ToArray();
         }
     }
     /// <summary>

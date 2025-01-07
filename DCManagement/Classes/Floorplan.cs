@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 
 namespace DCManagement.Classes; 
 public class Floorplan {
-    public Image? BaseImage { get; set; }
+    public Image BaseImage { get; set; }
     public Image? ImageWithLocations { get; set; }
     public Image? ImageMoving { get; set; }
     public LocationCollection Locations { get; set; } = [];
@@ -15,36 +15,24 @@ public class Floorplan {
     }
     public Size ImageSize { 
         get {
-            return BaseImage?.Size ?? new Size();
+            return BaseImage.Size;
         } 
     }
+    public PointF Scale {
+        get {
+            return new PointF(
+                (float)BaseImage.Size.Width / Client.Size.Width,
+                (float)BaseImage.Size.Height / Client.Size.Height
+            );
+        }
+    }
     public Floorplan () {
-        LoadFloorplan();
+        BaseImage = LoadFloorplan();
         if (ImageWithLocations is not null)
             ImageMoving = (Image)ImageWithLocations.Clone();
     }
-    public Point AdjustPointForScaling(Point BasePoint) {
-        if (BaseImage is null)
-            return BasePoint;
-        float scaleX = (float)ImageSize.Width / ClientSize.Width;
-        float scaleY = (float)ImageSize.Height / ClientSize.Height;
-        return new Point(
-            (int)(BasePoint.X * scaleX),
-            (int)(BasePoint.Y * scaleY)
-        );
-    }
-    public Point AdjustPointforScalingInverse(Point BasePoint) {
-        if (BaseImage is null)
-            return BasePoint;
-        float scaleX = (float)ImageSize.Width / ClientSize.Width;
-        float scaleY = (float)ImageSize.Height / ClientSize.Height;
-        return new Point(
-            (int)(BasePoint.X / scaleX),
-            (int)(BasePoint.Y / scaleY)
-        );
-    }
-    public void LoadFloorplan() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
+    public Image LoadFloorplan() {
+        using SqlConnection conn = new(Program.SqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT TOP (1) Image FROM Floorplan";
@@ -59,9 +47,10 @@ public class Floorplan {
                     BaseImage = Image.FromStream(stream);
                 }
         if (BaseImage is null)
-            return;
+            throw new InvalidDataException("Could not load floorplan from database");
         reader.Close();
         ImageWithLocations = DrawLocations();
+        return BaseImage;
     }
     public Image? DrawLocations() {
         if (BaseImage is null || Locations is null || !Locations.Any())
@@ -119,5 +108,59 @@ public class Floorplan {
             graphics.DrawRectangle(pen, rect);
         }
         return image;
+    }
+    public PointF GetScale() {
+        float scaleX = (float)Client.ClientSize.Width / BaseImage.Size.Width;
+        float scaleY = (float)Client.ClientSize.Height / BaseImage.Size.Height;
+        return new PointF(scaleX, scaleY);
+    }
+    public Point TransformCoordinates(Point location) {
+        PointF scaleF = GetScale();
+        float scaleX = scaleF.X;
+        float scaleY = scaleF.Y;
+        int offsetX = 0, offsetY = 0;
+        if (Client.BackgroundImageLayout == ImageLayout.Center) {
+            scaleX = Math.Min(scaleX, scaleY);
+            scaleY = scaleX;
+            offsetX = (int)((Client.ClientSize.Width - BaseImage.Size.Width * scaleX) / 2);
+            offsetY = (int)((Client.ClientSize.Height - BaseImage.Size.Height * scaleY) / 2);
+        }
+
+        int newX = (int)(location.X * scaleX) + offsetX;
+        int newY = (int)(location.Y * scaleY) + offsetY;
+        return new Point(newX, newY);
+    }
+    public Point TransformCoordinatesInv(Point location) {
+        PointF scaleF = GetScale();
+        float scaleX = scaleF.X;
+        float scaleY = scaleF.Y;
+        int offsetX = 0, offsetY = 0;
+        if (Client.BackgroundImageLayout == ImageLayout.Center) {
+            scaleX = Math.Min(scaleX, scaleY);
+            scaleY = scaleX;
+            offsetX = (int)((Client.ClientSize.Width - BaseImage.Size.Width * scaleX) / 2);
+            offsetY = (int)((Client.ClientSize.Height - BaseImage.Size.Height * scaleY) / 2);
+        }
+        int newX = (int)((location.X - offsetX) / scaleX);
+        int newY = (int)((location.Y - offsetY) / scaleY);
+        return new Point(newX, newY);
+    }
+    public Rectangle TransformRectangle(Rectangle rect) {
+        PointF scaleF = GetScale();
+        float scaleX = scaleF.X;
+        float scaleY = scaleF.Y;
+        int offsetX = 0, offsetY = 0;
+        if (Client.BackgroundImageLayout == ImageLayout.Center) {
+            float scale = Math.Min(scaleX, scaleY);
+            scaleX = scaleY = scale;
+            offsetX = (int)((Client.ClientSize.Width - BaseImage.Size.Width * scaleX) / 2);
+            offsetY = (int)((Client.ClientSize.Height - BaseImage.Size.Height * scaleY) / 2);
+        }
+
+        int newX = (int)(rect.Location.X * scaleX) + offsetX;
+        int newY = (int)(rect.Location.Y * scaleY) + offsetY;
+        int newWidth = (int)(rect.Width * scaleX);
+        int newHeight = (int)(rect.Height * scaleY);
+        return new Rectangle(newX, newY, newWidth, newHeight);
     }
 }
