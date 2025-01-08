@@ -1,11 +1,7 @@
 ﻿using DCManagement.Classes;
 using Microsoft.Data.SqlClient;
-using System;
 using System.Data;
 using System.Diagnostics;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Security.Cryptography;
 
 namespace DCManagement.Forms;
 public partial class DailyAssignment : Form {
@@ -15,7 +11,12 @@ public partial class DailyAssignment : Form {
     private Team _float = new() {
         TeamID = 9999
     };
+    private Team _unavailable = new() {
+        TeamID = -1
+    };
     private AvailablePeople _availablePeople = new();
+    private List<Person> _unavailablePeople = [];
+    private List<Team> _defunctTeams = [];
     private Floorplan _floorplan;
     private Size _maxSize;
     private List<Label> _labels = [];
@@ -113,7 +114,7 @@ public partial class DailyAssignment : Form {
         )];
         for (int i = 0; i < teamsToFill.Count; i++) {
             Team team = teamsToFill[i];
-            if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.Available)
+            if (!team.FillIfNoLead && team.TeamLead is not null && team.TeamLead.Available && team.TeamLead.Active)
                 continue;
             if (team.Slots.AtMinimum)
                 continue;
@@ -183,7 +184,7 @@ public partial class DailyAssignment : Form {
             members.Add(_people[personID]);
         }
         reader.Close();
-        return members;
+        return AvailablePeople.CleanUnavailable(members);
     }
     private static Location GetLocationData(int LocationID) {
         using SqlConnection conn = new(Program.SqlConnectionString); ;
@@ -310,13 +311,17 @@ public partial class DailyAssignment : Form {
             !t.FillIfNoLead &&
             t.TeamLead is null &&
             t.TeamName != "Float";
-        List<Team> defuctTeams = [.. _teams.Where(t => leadTeamsMissingLeads(t) || unleadTeamsMissingLeads(t))];
-        for (int defunctIterator = 0; defunctIterator < defuctTeams.Count; defunctIterator++) {
-            Team team = defuctTeams[defunctIterator];
+        List<Team> defunctTeams = [.. _teams.Where(t => leadTeamsMissingLeads(t) || unleadTeamsMissingLeads(t))];
+        for (int defunctIterator = 0; defunctIterator < defunctTeams.Count; defunctIterator++) {
+            Team team = defunctTeams[defunctIterator];
             for (int slotIterator = 0; slotIterator < team.Slots.Count; slotIterator++) {
                 Slot slot = team.Slots[slotIterator];
                 for (int personIterator = 0; personIterator < slot.Assigned.Count; personIterator++) {
                     Person floater = slot.Assigned[personIterator];
+                    if (!floater.Available || !floater.Active) {
+                        _ = _availablePeople.People.Remove(floater);
+                        continue;
+                    }
                     if (floater.Team is null)
                         _float.AssignPerson(floater, slot.SkillID);
                     else
@@ -325,9 +330,14 @@ public partial class DailyAssignment : Form {
                 }
             }
             _teams.Remove(team);
+            _defunctTeams.Add(team);
         }
         foreach (var person in _people.Values) {
-            if (person.Team is not null && defuctTeams.Contains(person.Team)) {
+            if (person.Team is not null && defunctTeams.Contains(person.Team)) {
+                if (!person.Available || !person.Active) {
+                    _ = _availablePeople.People.Remove(person);
+                    continue;
+                }
                 person.Team.ReassignPerson(person, _float, person.Skills.OrderBy(p => p.Priority).First().SkillID);
                 _availablePeople.People.Add(person);
             }
@@ -392,6 +402,58 @@ public partial class DailyAssignment : Form {
                 Debug.WriteLine($"{_teams[i].TeamID}:{_teams[i].Slots[j].SlotID} :: {_teams[i].Slots[j].Description}");
             }
         }
+        try {
+            _float.Slots = GetTeamSlots((int)_float.TeamID!);
+            _unavailable.Slots = GetTeamSlots((int)_float.TeamID!);
+        } catch {
+
+        }
+    }
+    private void ToggleUnavailable(Person person, bool toFloat = true) {
+        using SqlConnection conn = new(Program.SqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
+        cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.Connection = conn;
+        conn.Open();
+        if (person.Available) {
+            cmd.CommandText = "dbo.UnavailableToday";
+            _ = cmd.ExecuteNonQuery();
+            person.Available = false;
+            _unavailablePeople.Add(person);
+            Team? targetTeam = person.Team;
+            if (targetTeam is not null) {
+                if (targetTeam.Equals(_float)) {
+                    _availablePeople.People.Remove(person);
+                    Controls.Remove(person.Label);
+                    DrawFloat();
+                } else {
+                    Controls.Remove(person.Label);
+                    person.RemoveFromTeam();
+                    targetTeam.LabelPattern = DetermineTeamPattern(targetTeam);
+                    DeleteLables(targetTeam);
+                    CreateLabels(targetTeam);
+                    targetTeam.RemovePerson(person);
+                }
+            }
+            DrawUnavailable();
+        } else {
+            cmd.CommandText = "dbo.AvailableToday";
+            _ = cmd.ExecuteNonQuery();
+            _unavailablePeople.Remove(person);
+            Controls.Remove(person.Label);
+            _unavailable.RemovePerson(person);
+            DrawUnavailable();
+            if (toFloat)
+                MoveToFloat(person);
+        }
+    }
+    private void MoveToFloat(Person person) {
+        person.Available = true;
+        person.Team = _float;
+        _availablePeople.People.Add(person);
+        DrawFloat();
     }
     #endregion
     private void ResizeForm() {
@@ -428,25 +490,113 @@ public partial class DailyAssignment : Form {
         if (tag is null)
             return;
         Point dropPoint = PointToClient(new Point(e.X, e.Y));
+        dropPoint = _floorplan.TransformCoordinatesInv(dropPoint);
         Location? loc = _floorplan.Locations.FindByPoint(dropPoint);
         if (loc is null)
             return;
-        Team? team = _teams.Where(t => t.CurrentAssignment == loc).FirstOrDefault();
-        if (team is null && tag is Team) {
-            team = tag as Team;
-            team!.CurrentAssignment = loc;
-            foreach (var slotLabel in team.Slots.SelectMany(s => s.Assigned).Select(p => p.Label)) {
-                DeleteLables(team);
+        Team? newTeam = _teams.Where(t => t.CurrentAssignment is not null && t.CurrentAssignment.Equals(loc)).FirstOrDefault();
+        if (newTeam is null && tag is not Team)
+            newTeam = _defunctTeams.Where(t => t.PrimaryLocation is not null && t.PrimaryLocation.Equals(loc)).FirstOrDefault();
+        if (newTeam is null) {
+            if (_unavailable.LocationID == loc.LocID)
+                newTeam = _unavailable;
+            else if (_float.LocationID == loc.LocID)
+                newTeam = _float;
+        }
+        Team currentTeam;
+        if (newTeam is null && tag is Team) {
+            currentTeam = (Team)tag;
+            if (currentTeam.CurrentAssignment is not null && currentTeam.CurrentAssignment.Equals(loc))
+                return;
+            SuspendLayout();
+
+            DeleteLables(currentTeam);
+            currentTeam.CurrentAssignment = loc;
+            if (_defunctTeams.Contains(currentTeam)) {
+                _defunctTeams.Remove(currentTeam);
+                _teams.Add(currentTeam);
             }
-            CreateLabels(team);
-        } else if (team is not null && tag is Person person) {
-            Slot? slot = team.HighestPriorityMatch(person);
+            //foreach (var slotLabel in team.Slots.SelectMany(s => s.Assigned).Select(p => p.Label)) {
+            //    DeleteLables(team);
+            //}
+            CreateLabels(currentTeam);
+            ResumeLayout();
+        } else if (newTeam is not null && tag is Team) {
+            currentTeam = (Team)tag;
+            if (currentTeam.CurrentAssignment is not null && currentTeam.CurrentAssignment.Equals(loc))
+                return;
+            if (!(newTeam.Equals(_float) || newTeam.Equals(_unavailable)))
+                return;
+            SuspendLayout();
+            for (int i = 0; i < currentTeam.Slots.Count; i++) {
+                var slot = currentTeam.Slots[i];
+                for (int j = 0; j < slot.Assigned.Count; j++) {
+                    Person assignee = slot.Assigned[j];
+                    if (assignee.Equals(currentTeam.TeamLead!)) {
+                        if (newTeam.Equals(_unavailable)) {
+                            ToggleUnavailable(assignee);
+                            ResumeLayout();
+                            continue;
+                        } else if (newTeam.Equals(_float)) {
+                            MoveToFloat(assignee);
+                            ResumeLayout();
+                            continue;
+                        }
+                    }
+                    MoveToFloat(assignee);
+                }
+                slot.Assigned.Clear();
+            }
+            _teams.Remove(currentTeam);
+            _defunctTeams.Add(currentTeam);
+        } else if (newTeam is not null && tag is Person person) {
+            Slot? slot = newTeam.HighestPriorityMatch(person);
             if (slot is null)
                 return;
-            team.AssignPerson(person, slot.SkillID, true);
-            person.AssignmentLocked = true;
-            DeleteLables(team);
-            CreateLabels(team);
+            if (person.Team is not null) {
+                currentTeam = person.Team;
+                bool wasFloat = false;
+                if (newTeam.Equals(currentTeam))
+                    return;
+                SuspendLayout();
+                if (person.Team.Equals(_unavailable)) {
+                    ToggleUnavailable(person, newTeam.Equals(_float));
+                } else if (newTeam.Equals(_unavailable)) {
+                    ToggleUnavailable(person, false);
+                    ResumeLayout();
+                    return;
+                } else if (newTeam.Equals(_float)) {
+                    MoveToFloat(person);
+                    ResumeLayout();
+                    return;
+                } else if (person.Team.Equals(_float)) {
+                    _availablePeople.People.Remove(person);
+                    Controls.Remove(person.Label);
+                    DrawFloat();
+                    wasFloat = true;
+                } else {
+                    DeleteLables(currentTeam);
+                }
+                if (_defunctTeams.Contains(newTeam)) {
+                    _defunctTeams.Remove(newTeam);
+                    _teams.Add(newTeam);
+                } else {
+                    DeleteLables(newTeam);
+                }
+                newTeam.AssignPerson(person, slot.SkillID, true);
+                person.AssignmentLocked = true;
+                if (!wasFloat){
+                    currentTeam.LabelPattern = DetermineTeamPattern(currentTeam);
+                    CreateLabels(currentTeam);
+                }
+            } else {
+                DeleteLables(newTeam);
+                newTeam.AssignPerson(person, slot.SkillID, true);
+                person.AssignmentLocked = true;
+            }
+            newTeam.LabelPattern = DetermineTeamPattern(newTeam);
+            CreateLabels(newTeam);
+            ResumeLayout();
         }
     }
     private void DailyAssignment_DragOver(object sender, DragEventArgs e) {
@@ -455,6 +605,18 @@ public partial class DailyAssignment : Form {
     private void DailyAssignment_Load(object sender, EventArgs e) {
         GetSlotTypes();
         _teams = GetTeamData();
+        if (_teams.FirstOrDefault<Team>(t => t.TeamName == "Float") is not null) {
+            _float = _teams.First(t => t.TeamName == "Float");
+            _teams.Remove(_float);
+            _float.PrimaryLocation = GetLocationData(_float.LocationID);
+            _float.CurrentAssignment = _float.PrimaryLocation;
+        }
+        if (_teams.FirstOrDefault<Team>(t => t.TeamName == "Unavailable") is not null) {
+            _unavailable = _teams.First(t => t.TeamName == "Unavailable");
+            _teams.Remove(_unavailable);
+            _unavailable.PrimaryLocation = GetLocationData(_unavailable.LocationID);
+            _unavailable.CurrentAssignment = _unavailable.PrimaryLocation;
+        }
         using SqlConnection conn = new(Program.SqlConnectionString);
         using SqlCommand cmd = new();
         conn.Open();
@@ -465,14 +627,18 @@ public partial class DailyAssignment : Form {
         while (reader.Read()) {
             int personID = reader.GetInt32(0);
             Person person = GetPersonData(personID);
+            if (!person.Available) {
+                person.Team = _unavailable;
+                _unavailablePeople.Add(person);
+            }
             person.Team = _teams.Where(t => t.TeamID == person.TeamID).FirstOrDefault<Team>();
+            if (person.Team is null && person.Available) {
+                person.Team = _float;
+                _availablePeople.People.Add(person);
+            }
             _people.Add(person);
         }
         PrepTeams();
-        if (_teams.FirstOrDefault<Team>(t => t.TeamName == "Float") is not null) {
-            _float = _teams.First(t => t.TeamName == "Float");
-            _teams.Remove(_float);
-        }
         MoveUnassignedToFloat();
         List<Skill> activeSkills = _teams
             .Select(t => t.Slots)
@@ -489,6 +655,8 @@ public partial class DailyAssignment : Form {
             FillGoalSlots(skill.SkillID);
         }
         AddLabels();
+        DrawUnavailable();
+        DrawFloat();
     }
     private void DailyAssignment_MouseMove(object sender, MouseEventArgs e) {
         MouseCoordTSMI.Text = $"{e.X},{e.Y}";
@@ -501,6 +669,22 @@ public partial class DailyAssignment : Form {
             DeleteLables(team);
             CreateLabels(team);
         }
+    }
+    private void ToggleAvailabilityToolStripMenuItem_Click(object sender, EventArgs e) {
+        ToolStripMenuItem? item = sender as ToolStripMenuItem;
+        if (item is null)
+            return;
+        ContextMenuStrip? owner = item.Owner as ContextMenuStrip;
+        if (owner is null)
+            return;
+        if (owner.SourceControl is not Label label)
+            return;
+        Person target;
+        if (label.Tag is Team team)
+            target = team.TeamLead!;
+        else
+            target = (label.Tag as Person)!;
+        ToggleUnavailable(target);
     }
     #endregion
     #region Label Event Handlers
@@ -577,6 +761,7 @@ public partial class DailyAssignment : Form {
                             Text = $"{person.LastName}, {person.FirstName[..1]}.",
                             AutoSize = true,
                             BackColor = slotInfo.SlotColor,
+                            ForeColor = Color.Black,
                             Tag = person,
                             Width = 1,
                             Location = new Point(0, 0)
@@ -602,10 +787,10 @@ public partial class DailyAssignment : Form {
                         Text = $"{team.TeamLead.LastName}, {team.TeamLead.FirstName[..1]}.",
                         AutoSize = true,
                         BackColor = team.TeamLead.Skills.OrderByDescending(s => s.Priority).First().SlotColor,
+                        ForeColor = Color.Black,
                         Tag = team,
-                        BorderStyle = BorderStyle.FixedSingle,
                         Width = 1,
-                        Location = new Point(0,0)
+                        Location = new Point(0, 0)
                     };
                     Controls.Add(team.TeamLead.Label);
                     team.TeamLead.Label.PerformLayout();
@@ -622,6 +807,7 @@ public partial class DailyAssignment : Form {
                                 Text = $"{person.LastName}, {person.FirstName[..1]}.",
                                 AutoSize = true,
                                 BackColor = slot.SlotColor,
+                                ForeColor = Color.Black,
                                 Tag = person,
                                 Width = 1,
                                 Location = new Point(0, 0)
@@ -644,6 +830,7 @@ public partial class DailyAssignment : Form {
                                 Text = $"{person.LastName}, {person.FirstName[..1]}.",
                                 AutoSize = true,
                                 BackColor = slot.SlotColor,
+                                ForeColor = Color.Black,
                                 Tag = person,
                                 Width = 1,
                                 Location = new Point(0, 0)
@@ -669,6 +856,7 @@ public partial class DailyAssignment : Form {
                     Text = team.TeamLead.LastName,
                     AutoSize = true,
                     BackColor = team.TeamLead.Skills.OrderByDescending(s => s.Priority).First().SlotColor,
+                    ForeColor = Color.Black,
                     Tag = team,
                     Width = 1,
                     Location = new Point(0, 0)
@@ -698,6 +886,7 @@ public partial class DailyAssignment : Form {
                     Text = $"{assistants[0].LastName}, {assistants[0].FirstName[..1]}.",
                     AutoSize = true,
                     BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
+                    ForeColor = Color.Black,
                     Tag = assistants[0],
                     Width = 1,
                     Location = new Point(0, 0)
@@ -706,6 +895,7 @@ public partial class DailyAssignment : Form {
                     Text = $"{assistants[1].LastName}, {assistants[1].FirstName[..1]}.",
                     AutoSize = true,
                     BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
+                    ForeColor = Color.Black,
                     Tag = assistants[1],
                     Width = 1,
                     Location = new Point(0, 0)
@@ -726,6 +916,7 @@ public partial class DailyAssignment : Form {
                         Text = $"{efAssistant.LastName}, {efAssistant.FirstName[..1]}.",
                         AutoSize = true,
                         BackColor = _skills.Where(s => s.Description == "EFDA").First().SlotColor,
+                        ForeColor = Color.Black,
                         Tag = efAssistant,
                         Width = 1,
                         Location = new Point(0, 0)
@@ -741,6 +932,7 @@ public partial class DailyAssignment : Form {
                         Text = $"{assistant.LastName}, {assistant.FirstName[..1]}.",
                         AutoSize = true,
                         BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
+                        ForeColor = Color.Black,
                         Tag = assistant,
                         Width = 1,
                         Location = new Point(0, 0)
@@ -758,6 +950,7 @@ public partial class DailyAssignment : Form {
 
         foreach (var slotLabel in team.Slots.SelectMany(s => s.Assigned).Select(p => p.Label)) {
             slotLabel.MouseDown += SlotLabel_MouseDown;
+            slotLabel.ContextMenuStrip = LabelContextMenu;
         }
         ResumeLayout();
     }
@@ -774,6 +967,99 @@ public partial class DailyAssignment : Form {
             team.LabelPattern = DetermineTeamPattern(team);
             CreateLabels(team);
         }
+    }
+    private void DrawFloat() {
+        const int horizontalSpacing = 5;
+        const int verticalSpacing = 5;
+        if (_float.PrimaryLocation is null)
+            return;
+        Rectangle rect = _float.PrimaryLocation.Rect;
+        rect = _floorplan.TransformRectangle(rect);
+        int firstX = rect.Left + (int)(10 * _floorplan.GetScale().X);
+        int firstY = rect.Top + (int)(15 * _floorplan.GetScale().Y);
+        int currentX = firstX;
+        int currentY = firstY;
+        int rowHeight = 0;
+        SuspendLayout();
+        foreach (var person in _availablePeople.People) {
+            if (person.Label is not null && Controls.OfType<Label>().Contains(person.Label))
+                Controls.Remove(person.Label);
+            person.Label = new() {
+                Text = $"{person.LastName}, {person.FirstName[..1]}.",
+                AutoSize = true,
+                BackColor = Color.Black,
+                ForeColor = Color.White,
+                Tag = person,
+                Width = 1,
+                Location = new Point(0, 0)
+            };
+            Controls.Add(person.Label);
+            person.Label.PerformLayout();
+            if (currentX + person.Label.Width > rect.Right - horizontalSpacing) {
+                currentX = firstX;
+                currentY += rowHeight + verticalSpacing;
+                rowHeight = 0;
+                if (currentY + person.Label.Height > rect.Bottom)
+                    break;
+            }
+
+            person.Label.Location = new() {
+                X = currentX,
+                Y = currentY
+            };
+            currentX += person.Label.Width + horizontalSpacing;
+            rowHeight = Math.Max(rowHeight, person.Label.Height);
+            person.Label.MouseDown += SlotLabel_MouseDown;
+            person.Label.ContextMenuStrip = LabelContextMenu;
+        }
+        ResumeLayout();
+    }
+    private void DrawUnavailable() {
+        const int horizontalSpacing = 5;
+        const int verticalSpacing = 5;
+        if (_unavailable.PrimaryLocation is null)
+            return;
+        Rectangle rect = _unavailable.PrimaryLocation.Rect;
+        rect = _floorplan.TransformRectangle(rect);
+        int firstX = rect.Left + (int)(10 * _floorplan.GetScale().X);
+        int firstY = rect.Top + (int)(15 * _floorplan.GetScale().Y);
+        int currentX = firstX;
+        int currentY = firstY;
+        int rowHeight = 0;
+        SuspendLayout();
+        foreach (var person in _unavailablePeople) {
+            person.Team = _unavailable;
+            if (person.Label is not null && Controls.OfType<Label>().Contains(person.Label))
+                Controls.Remove(person.Label);
+            person.Label = new() {
+                Text = $"{person.LastName}, {person.FirstName[..1]}.",
+                AutoSize = true,
+                BackColor = Color.Black,
+                ForeColor = Color.White,
+                Tag = person,
+                Width = 1,
+                Location = new Point(0, 0)
+            };
+            Controls.Add(person.Label);
+            person.Label.PerformLayout();
+            if (currentX + person.Label.Width > rect.Right - horizontalSpacing) {
+                currentX = firstX;
+                currentY += rowHeight + verticalSpacing;
+                rowHeight = 0;
+                if (currentY + person.Label.Height > rect.Bottom)
+                    break;
+            }
+
+            person.Label.Location = new() {
+                X = currentX,
+                Y = currentY
+            };
+            currentX += person.Label.Width + horizontalSpacing;
+            rowHeight = Math.Max(rowHeight, person.Label.Height);
+            person.Label.MouseDown += SlotLabel_MouseDown;
+            person.Label.ContextMenuStrip = LabelContextMenu;
+        }
+        ResumeLayout();
     }
     #endregion
 }

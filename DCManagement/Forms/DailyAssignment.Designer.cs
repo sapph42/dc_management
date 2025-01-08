@@ -23,13 +23,17 @@
         /// the contents of this method with the code editor.
         /// </summary>
         private void InitializeComponent() {
+            components = new System.ComponentModel.Container();
             EditMenu = new MenuStrip();
             EditTSMI = new ToolStripMenuItem();
+            RefreshToolStripMenuItem = new ToolStripMenuItem();
             MouseCoordTSMI = new ToolStripMenuItem();
             AlertMessagesTSMI = new ToolStripMenuItem();
             CancelPendingActionToolStripMenuItem = new ToolStripMenuItem();
-            RefreshToolStripMenuItem = new ToolStripMenuItem();
+            LabelContextMenu = new ContextMenuStrip(components);
+            ToggleAvailabilityToolStripMenuItem = new ToolStripMenuItem();
             EditMenu.SuspendLayout();
+            LabelContextMenu.SuspendLayout();
             SuspendLayout();
             // 
             // EditMenu
@@ -47,6 +51,13 @@
             EditTSMI.Name = "EditTSMI";
             EditTSMI.Size = new Size(39, 20);
             EditTSMI.Text = "Edit";
+            // 
+            // RefreshToolStripMenuItem
+            // 
+            RefreshToolStripMenuItem.Name = "RefreshToolStripMenuItem";
+            RefreshToolStripMenuItem.Size = new Size(113, 22);
+            RefreshToolStripMenuItem.Text = "Refresh";
+            RefreshToolStripMenuItem.Click += RefreshToolStripMenuItem_Click;
             // 
             // MouseCoordTSMI
             // 
@@ -67,12 +78,18 @@
             CancelPendingActionToolStripMenuItem.Text = "Cancel";
             CancelPendingActionToolStripMenuItem.Visible = false;
             // 
-            // RefreshToolStripMenuItem
+            // LabelContextMenu
             // 
-            RefreshToolStripMenuItem.Name = "RefreshToolStripMenuItem";
-            RefreshToolStripMenuItem.Size = new Size(180, 22);
-            RefreshToolStripMenuItem.Text = "Refresh";
-            RefreshToolStripMenuItem.Click += RefreshToolStripMenuItem_Click;
+            LabelContextMenu.Items.AddRange(new ToolStripItem[] { ToggleAvailabilityToolStripMenuItem });
+            LabelContextMenu.Name = "LabelContextMenu";
+            LabelContextMenu.Size = new Size(181, 48);
+            // 
+            // ToggleAvailabilityToolStripMenuItem
+            // 
+            ToggleAvailabilityToolStripMenuItem.Name = "ToggleAvailabilityToolStripMenuItem";
+            ToggleAvailabilityToolStripMenuItem.Size = new Size(180, 22);
+            ToggleAvailabilityToolStripMenuItem.Text = "Toggle Availability";
+            ToggleAvailabilityToolStripMenuItem.Click += ToggleAvailabilityToolStripMenuItem_Click;
             // 
             // DailyAssignment
             // 
@@ -89,6 +106,7 @@
             MouseMove += DailyAssignment_MouseMove;
             EditMenu.ResumeLayout(false);
             EditMenu.PerformLayout();
+            LabelContextMenu.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -101,5 +119,7 @@
         private ToolStripMenuItem AlertMessagesTSMI;
         private ToolStripMenuItem CancelPendingActionToolStripMenuItem;
         private ToolStripMenuItem RefreshToolStripMenuItem;
+        private ContextMenuStrip LabelContextMenu;
+        private ToolStripMenuItem ToggleAvailabilityToolStripMenuItem;
     }
 }

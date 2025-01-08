@@ -74,6 +74,9 @@ public class Person {
         };
         return clone;
     }
+    public bool Equals(Person otherPerson) {
+        return PersonID == otherPerson.PersonID;
+    }
     public List<int> GetSkillIDs() {
         if (Skills.Count > 0)
             return Skills.Select(s => s.SkillID).ToList();
@@ -115,6 +118,10 @@ public class Person {
     }
     public bool HasSkill(int SkillTypeID) {
         return GetSkillIDs().Contains(SkillTypeID);
+    }
+    public void RemoveFromTeam() {
+        Team = null;
+        _teamID = -1;
     }
     public void SetSkills(IEnumerable<Skill> values) {
         Skills.Clear();

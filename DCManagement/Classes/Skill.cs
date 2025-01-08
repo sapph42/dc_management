@@ -19,6 +19,9 @@ public class Skill {
         Description = desc;
         SlotColor = ColorTranslator.FromHtml("#" + color); 
     }
+    public bool Equals(Skill otherSkill) {
+        return SkillID == otherSkill.SkillID;
+    }
     public void SetSlotColor (string ColorHex) {
         SlotColor = ColorTranslator.FromHtml ("#" + ColorHex);
     }
