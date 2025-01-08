@@ -60,6 +60,9 @@ public class Team {
             .Assigned
             .Add(person);
     }
+    public bool Equals(Team otherTeam) {
+        return TeamID == otherTeam.TeamID;
+    }
     public SqlParameter[] GetSqlParameters() {
         var coll = new SqlParameter[6];
         coll[0] = new SqlParameter() {
@@ -128,17 +131,35 @@ public class Team {
             .Where(slot => person.Skills.Any(skill => skill.Equals((Skill)slot)))
             .OrderByDescending(slot => slot.Priority)
             .FirstOrDefault();
-    public void ReassignPerson(Person person, Team newTeam, int skillID) {
-        if (person.AssignmentLocked)
+    public void ReassignPerson(Person person, Team newTeam, int skillID, bool OverrideLock = false, bool Lock = false, List<int>? ignoreSkills = default) {
+        if (person.AssignmentLocked && !OverrideLock)
             return;
         person.Team = newTeam;
         Slots.RemovePerson(person);
+        if (!person.Available || !person.Active)
+            return;
+        if (newTeam.Slots.Where(s => s.SkillID == skillID).FirstOrDefault<Slot>() is null) {
+            try {
+                if (ignoreSkills is null)
+                    ignoreSkills = [];
+                int otherSkill = person.Skills.First(s => !ignoreSkills.Contains(skillID)).SkillID;
+                ignoreSkills.Add(skillID);
+                ReassignPerson(person, newTeam, otherSkill, OverrideLock, Lock, ignoreSkills);
+            } catch {
+                throw new Exception();
+            }
+        }
         newTeam
             .Slots
             .Where(s => s.SkillID == skillID)
             .First()
             .Assigned
             .Add(person);
+        if (Lock)
+            person.AssignmentLocked = true;
+    }
+    public void RemovePerson(Person person) {
+        Slots.RemovePerson(person);
     }
     public override string ToString() {
         return TeamName;
