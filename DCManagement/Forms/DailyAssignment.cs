@@ -31,9 +31,21 @@ public partial class DailyAssignment : Form {
             Height = ClientSize.Height,
             Width = ClientSize.Width
         };
-        _floorplan.LoadFloorplan();
-        ResizeForm();
-        BackgroundImage = _floorplan.ImageWithLocations;
+        InitializeForm(true, true);
+    }
+    private void InitializeForm(bool baseInit = false, bool doResize = false, bool fullInit = false) {
+        if (baseInit) {
+            _floorplan.LoadFloorplan();
+            if (doResize) 
+                ResizeForm();
+            BackgroundImage = _floorplan.ImageWithLocations;
+        }
+        if (fullInit) {
+            ClearLabels();
+            AddLabels();
+            DrawUnavailable();
+            DrawFloat();
+        }
     }
     #region Data Methods
     private void FillGoalSlots(int SkillID) {
@@ -181,127 +193,52 @@ public partial class DailyAssignment : Form {
         while (reader.Read()) {
             int personID = reader.GetInt32(0);
             if (!_people.ContainsKey(personID))
-                _people.Add(GetPersonData(personID));
+                _people.Add(Person.FromDatabase(personID));
             members.Add(_people[personID]);
         }
         reader.Close();
         return AvailablePeople.CleanUnavailable(members);
     }
-    private static Location GetLocationData(int LocationID) {
-        using SqlConnection conn = new(Program.SqlConnectionString); ;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location WHERE LocID=@LocID";
-        cmd.Parameters.Add("@LocID", SqlDbType.Int);
-        cmd.Parameters["@LocID"].Value = LocationID;
-        cmd.Connection = conn;
-        conn.Open();
-        Location loc = new();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
-        while (reader.Read()) {
-            _ = reader.GetValues(row);
-            loc = new(row);
+    private void PrepTeams() {
+        for (int i = 0; i < _teams.Count; i++) {
+            Team team = _teams[i];
+            if (!team.Active)
+                continue;
+            if (team.TeamLeadID != -1) {
+                team.TeamLead = _people[team.TeamLeadID]; ;
+            }
+            if (team.PrimaryLocation is null && team.LocationID != -1) {
+                team.PrimaryLocation = Classes.Location.FromDatabase(team.LocationID);
+                team.CurrentAssignment = team.PrimaryLocation;
+            }
+            Debug.WriteLine($"{_teams[i].TeamID}:{_teams[i].TeamName} :: {_teams[i].PrimaryLocation?.Name ?? ""}");
+            team.Slots = TeamSlots.FromDatabase((int)team.TeamID!, _skills);
+            for (int j = 0; j < team.Slots.Count; j++) {
+                Slot slot = team.Slots[j];
+                int skillID = slot.SkillID;
+                slot.Assigned = GetDefaultSlotAssignments((int)team.TeamID, skillID);
+                Debug.WriteLine($"{_teams[i].TeamID}:{_teams[i].Slots[j].SlotID} :: {_teams[i].Slots[j].Description}");
+            }
         }
-        reader.Close();
-        return loc;
-    }
-    private static Person GetPersonData(int PersonID) {
-        using SqlConnection conn = new(Program.SqlConnectionString); ;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetPersonData";
-        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
-        cmd.Parameters["@PersonID"].Value = PersonID;
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataAdapter adapter = new(cmd);
-        DataSet ds = new();
-        adapter.Fill(ds);
-        DataTable personData = ds.Tables[0];
-        DataTable skills = ds.Tables[1];
-        if (personData.Rows.Count == 0 || personData.Rows[0].ItemArray is null)
-            throw new ArgumentException("No such person exists");
-        Person person = new(personData.Rows[0].ItemArray!);
-        if (skills.Rows.Count == 0)
-            return person;
-        foreach (DataRow dataRow in skills.Rows) {
-            if (dataRow[0] is null || dataRow[1] is null) continue;
-            Skill newSkill = new() {
-                SkillID = (int)dataRow[0],
-                Description = (string)dataRow[1]
-            };
-            if (dataRow[2] is not null)
-                newSkill.SetSlotColor((string)dataRow[2]);
-            if (dataRow[3] is not null)
-                newSkill.Priority = (int)dataRow[3];
-            person.AddSkill(newSkill);
+        try {
+            _float.Slots = TeamSlots.FromDatabase((int)_float.TeamID!, _skills);
+            _unavailable.Slots = TeamSlots.FromDatabase((int)_unavailable.TeamID!, _skills);
+        } catch {
+
         }
-        return person;
     }
-    private void GetSlotTypes() {
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetSkills";
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read()) {
-            _skills.Add(new() {
-                SkillID = reader.GetInt32(0),
-                Description = reader.GetString(1),
-                SlotColor = ColorTranslator.FromHtml("#" + reader.GetString(2)),
-                Priority = reader.GetInt32(3)
-            });
-        }
-        reader.Close();
-    }
-    private static List<Team> GetTeamData() {
-        List<Team> teams = [];
-        PersonCollection people = [];
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active FROM Team WHERE Active=1";
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
-        while (reader.Read()) {
-            _ = reader.GetValues(row);
-            teams.Add(new Team(row));
-        }
-        reader.Close();
-        return teams;
-    }
-    private TeamSlots GetTeamSlots(int TeamID) {
-        TeamSlots slots = [];
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT SlotID, SkillID, MinQty, GoalQty FROM dbo.GetTeamSlots(@TeamID)";
-        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        cmd.Parameters["@TeamID"].Value = TeamID;
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read()) {
-            Skill thisSkill = _skills.First(st => st.SkillID == reader.GetInt32(1));
-            slots.Add(
-                new() {
-                    SlotID = reader.GetInt32(0),
-                    SkillID = thisSkill.SkillID,
-                    Description = thisSkill.Description,
-                    SlotColor = thisSkill.SlotColor,
-                    MinQty = reader.GetInt32(2),
-                    GoalQty = reader.GetInt32(3)
-                }
-            );
-        }
-        reader.Close();
-        return slots;
-    }
+    private List<Skill> GetActiveSkills() =>
+        _teams
+            .Select(t => t.Slots)
+            .Select(ts => ts.ToSlot()
+                            .Cast<Skill>()
+            )
+            .SelectMany(l => l)
+            .OrderBy(s => s.Priority)
+            .DistinctBy(s => s.SkillID)
+            .ToList();
+    #endregion
+    #region Label Transactions
     private void MoveUnassignedToFloat() {
         Func<Team, bool> leadTeamsMissingLeads = t =>
             !t.FillIfNoLead &&
@@ -382,34 +319,6 @@ public partial class DailyAssignment : Form {
             _availablePeople.People.Add(thisPerson);
         }
     }
-    private void PrepTeams() {
-        for (int i = 0; i < _teams.Count; i++) {
-            Team team = _teams[i];
-            if (!team.Active)
-                continue;
-            if (team.TeamLeadID != -1) {
-                team.TeamLead = _people[team.TeamLeadID]; ;
-            }
-            if (team.PrimaryLocation is null && team.LocationID != -1) {
-                team.PrimaryLocation = GetLocationData(team.LocationID);
-                team.CurrentAssignment = team.PrimaryLocation;
-            }
-            Debug.WriteLine($"{_teams[i].TeamID}:{_teams[i].TeamName} :: {_teams[i].PrimaryLocation?.Name ?? ""}");
-            team.Slots = GetTeamSlots((int)team.TeamID!);
-            for (int j = 0; j < team.Slots.Count; j++) {
-                Slot slot = team.Slots[j];
-                int skillID = slot.SkillID;
-                slot.Assigned = GetDefaultSlotAssignments((int)team.TeamID, skillID);
-                Debug.WriteLine($"{_teams[i].TeamID}:{_teams[i].Slots[j].SlotID} :: {_teams[i].Slots[j].Description}");
-            }
-        }
-        try {
-            _float.Slots = GetTeamSlots((int)_float.TeamID!);
-            _unavailable.Slots = GetTeamSlots((int)_float.TeamID!);
-        } catch {
-
-        }
-    }
     private void ToggleUnavailable(Person person, bool toFloat = true) {
         using SqlConnection conn = new(Program.SqlConnectionString);
         using SqlCommand cmd = new();
@@ -479,6 +388,7 @@ public partial class DailyAssignment : Form {
             }
             BackgroundImageLayout = ImageLayout.Stretch;
         }
+        manualResizeTriggered = false;
     }
     #region Form Event Handlers
     private void DailyAssignment_DragDrop(object sender, DragEventArgs e) {
@@ -586,7 +496,7 @@ public partial class DailyAssignment : Form {
                 }
                 newTeam.AssignPerson(person, slot.SkillID, true);
                 person.AssignmentLocked = true;
-                if (!wasFloat){
+                if (!wasFloat) {
                     currentTeam.LabelPattern = DetermineTeamPattern(currentTeam);
                     CreateLabels(currentTeam);
                 }
@@ -604,20 +514,21 @@ public partial class DailyAssignment : Form {
         e.Effect = DragDropEffects.Move;
     }
     private void DailyAssignment_Load(object sender, EventArgs e) {
-        GetSlotTypes();
-        _teams = GetTeamData();
-        if (_teams.FirstOrDefault<Team>(t => t.TeamName == "Float") is not null) {
+        _skills = Skill.FromDatabase();
+        _teams = Team.FromDatabase();
+        if (_teams.FirstOrDefault(t => t.TeamName == "Float") is not null) {
             _float = _teams.First(t => t.TeamName == "Float");
             _teams.Remove(_float);
-            _float.PrimaryLocation = GetLocationData(_float.LocationID);
+            _float.PrimaryLocation = Classes.Location.FromDatabase(_float.LocationID);
             _float.CurrentAssignment = _float.PrimaryLocation;
         }
-        if (_teams.FirstOrDefault<Team>(t => t.TeamName == "Unavailable") is not null) {
+        if (_teams.FirstOrDefault(t => t.TeamName == "Unavailable") is not null) {
             _unavailable = _teams.First(t => t.TeamName == "Unavailable");
             _teams.Remove(_unavailable);
-            _unavailable.PrimaryLocation = GetLocationData(_unavailable.LocationID);
+            _unavailable.PrimaryLocation = Classes.Location.FromDatabase(_unavailable.LocationID);
             _unavailable.CurrentAssignment = _unavailable.PrimaryLocation;
         }
+        PrepTeams();
         using SqlConnection conn = new(Program.SqlConnectionString);
         using SqlCommand cmd = new();
         conn.Open();
@@ -627,7 +538,7 @@ public partial class DailyAssignment : Form {
         using var reader = cmd.ExecuteReader();
         while (reader.Read()) {
             int personID = reader.GetInt32(0);
-            Person person = GetPersonData(personID);
+            Person person = Person.FromDatabase(personID);
             if (!person.Available) {
                 person.Team = _unavailable;
                 _unavailablePeople.Add(person);
@@ -639,25 +550,18 @@ public partial class DailyAssignment : Form {
             }
             _people.Add(person);
         }
-        PrepTeams();
         MoveUnassignedToFloat();
-        List<Skill> activeSkills = _teams
-            .Select(t => t.Slots)
-            .Select(ts => ts.ToSlot()
-            .Cast<Skill>())
-            .SelectMany(l => l)
-            .OrderBy(s => s.Priority)
-            .DistinctBy(s => s.SkillID)
-            .ToList();
+        List<Skill> activeSkills = GetActiveSkills();
         foreach (var skill in activeSkills) {
             FillMinimumSlots(skill.SkillID);
         }
         foreach (var skill in activeSkills) {
             FillGoalSlots(skill.SkillID);
         }
-        AddLabels();
-        DrawUnavailable();
-        DrawFloat();
+        InitializeForm(false, false, true);
+    }
+    private void DailyAssignment_Resize(object sender, EventArgs e) {
+        InitializeForm(true, false, true);
     }
     private void DailyAssignment_MouseMove(object sender, MouseEventArgs e) {
         MouseCoordTSMI.Text = $"{e.X},{e.Y}";
@@ -897,6 +801,14 @@ public partial class DailyAssignment : Form {
                 Controls.Remove(label);
             });
         ResumeLayout();
+    }
+    private void ClearLabels() {
+        Controls
+            .OfType<Label>()
+            .ToList()
+            .ForEach(label => {
+                Controls.Remove(label);
+        });
     }
     private void DrawFloat() {
         const int horizontalSpacing = 5;

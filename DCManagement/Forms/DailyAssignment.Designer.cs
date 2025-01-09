@@ -82,12 +82,12 @@
             // 
             LabelContextMenu.Items.AddRange(new ToolStripItem[] { ToggleAvailabilityToolStripMenuItem });
             LabelContextMenu.Name = "LabelContextMenu";
-            LabelContextMenu.Size = new Size(181, 48);
+            LabelContextMenu.Size = new Size(172, 26);
             // 
             // ToggleAvailabilityToolStripMenuItem
             // 
             ToggleAvailabilityToolStripMenuItem.Name = "ToggleAvailabilityToolStripMenuItem";
-            ToggleAvailabilityToolStripMenuItem.Size = new Size(180, 22);
+            ToggleAvailabilityToolStripMenuItem.Size = new Size(171, 22);
             ToggleAvailabilityToolStripMenuItem.Text = "Toggle Availability";
             ToggleAvailabilityToolStripMenuItem.Click += ToggleAvailabilityToolStripMenuItem_Click;
             // 
@@ -104,6 +104,7 @@
             DragDrop += DailyAssignment_DragDrop;
             DragOver += DailyAssignment_DragOver;
             MouseMove += DailyAssignment_MouseMove;
+            Resize += DailyAssignment_Resize;
             EditMenu.ResumeLayout(false);
             EditMenu.PerformLayout();
             LabelContextMenu.ResumeLayout(false);
