@@ -63,6 +63,24 @@ public class Team {
     public bool Equals(Team otherTeam) {
         return TeamID == otherTeam.TeamID;
     }
+    public static List<Team> FromDatabase() {
+        List<Team> teams = [];
+        PersonCollection people = [];
+        using SqlConnection conn = new(Program.SqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = @"SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active FROM Team WHERE Active=1";
+        cmd.Connection = conn;
+        conn.Open();
+        using SqlDataReader reader = cmd.ExecuteReader();
+        object[] row = new object[6];
+        while (reader.Read()) {
+            _ = reader.GetValues(row);
+            teams.Add(new Team(row));
+        }
+        reader.Close();
+        return teams;
+    }
     public SqlParameter[] GetSqlParameters() {
         var coll = new SqlParameter[6];
         coll[0] = new SqlParameter() {

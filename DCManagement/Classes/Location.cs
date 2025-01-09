@@ -52,6 +52,25 @@ public class Location {
     public bool Equals(Location otherLocation) {
         return (LocID == otherLocation.LocID &&  Name == otherLocation.Name);
     }
+    public static Location FromDatabase(int LocationID) {
+        using SqlConnection conn = new(Program.SqlConnectionString); ;
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location WHERE LocID=@LocID";
+        cmd.Parameters.Add("@LocID", SqlDbType.Int);
+        cmd.Parameters["@LocID"].Value = LocationID;
+        cmd.Connection = conn;
+        conn.Open();
+        Location loc = new();
+        using SqlDataReader reader = cmd.ExecuteReader();
+        object[] row = new object[6];
+        while (reader.Read()) {
+            _ = reader.GetValues(row);
+            loc = new(row);
+        }
+        reader.Close();
+        return loc;
+    }
     public bool IsPointInside(Point point) {
         return point.X >= UpperLeft.X && point.X <= Rect.Right &&
             point.Y >= UpperLeft.Y && point.Y <= Rect.Bottom;

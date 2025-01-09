@@ -1,4 +1,7 @@
-﻿namespace DCManagement.Classes; 
+﻿using Microsoft.Data.SqlClient;
+using System.Data;
+
+namespace DCManagement.Classes; 
 public class Skill {
     public int SkillID { get; set; }
     public required string Description { get; set; }
@@ -21,6 +24,26 @@ public class Skill {
     }
     public bool Equals(Skill otherSkill) {
         return SkillID == otherSkill.SkillID;
+    }
+    public static List<Skill> FromDatabase() {
+        using SqlConnection conn = new(Program.SqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.CommandText = "dbo.GetSkills";
+        cmd.Connection = conn;
+        conn.Open();
+        using SqlDataReader reader = cmd.ExecuteReader();
+        List<Skill> skills = [];
+        while (reader.Read()) {
+            skills.Add(new() {
+                SkillID = reader.GetInt32(0),
+                Description = reader.GetString(1),
+                SlotColor = ColorTranslator.FromHtml("#" + reader.GetString(2)),
+                Priority = reader.GetInt32(3)
+            });
+        }
+        reader.Close();
+        return skills;
     }
     public void SetSlotColor (string ColorHex) {
         SlotColor = ColorTranslator.FromHtml ("#" + ColorHex);

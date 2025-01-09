@@ -77,6 +77,40 @@ public class Person {
     public bool Equals(Person otherPerson) {
         return PersonID == otherPerson.PersonID;
     }
+
+    public static Person FromDatabase(int personID) {
+        using SqlConnection conn = new(Program.SqlConnectionString); ;
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.CommandText = "dbo.GetPersonData";
+        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
+        cmd.Parameters["@PersonID"].Value = personID;
+        cmd.Connection = conn;
+        conn.Open();
+        using SqlDataAdapter adapter = new(cmd);
+        DataSet ds = new();
+        adapter.Fill(ds);
+        DataTable personData = ds.Tables[0];
+        DataTable skills = ds.Tables[1];
+        if (personData.Rows.Count == 0 || personData.Rows[0].ItemArray is null)
+            throw new ArgumentException("No such person exists");
+        Person person = new(personData.Rows[0].ItemArray!);
+        if (skills.Rows.Count == 0)
+            return person;
+        foreach (DataRow dataRow in skills.Rows) {
+            if (dataRow[0] is null || dataRow[1] is null) continue;
+            Skill newSkill = new() {
+                SkillID = (int)dataRow[0],
+                Description = (string)dataRow[1]
+            };
+            if (dataRow[2] is not null)
+                newSkill.SetSlotColor((string)dataRow[2]);
+            if (dataRow[3] is not null)
+                newSkill.Priority = (int)dataRow[3];
+            person.AddSkill(newSkill);
+        }
+        return person;
+    }
     public void GenerateCenteredLabelTemplate(int centerXOn, int Y, Color backColor, Color? foreColor = null) {
         if (foreColor is null)
             foreColor = Color.Black;

@@ -1,4 +1,7 @@
-﻿namespace DCManagement.Classes;
+﻿using Microsoft.Data.SqlClient;
+using System.Data;
+
+namespace DCManagement.Classes;
 public class TeamSlots : List<Slot> {
     public bool AtMinimum {
         get {
@@ -19,6 +22,33 @@ public class TeamSlots : List<Slot> {
         get {
             return this.Where(ts => ts.HasAvailableForGoal).Select(ts => ts.SkillID).ToArray();
         }
+    }
+    public static TeamSlots FromDatabase(int TeamID, List<Skill> skillList) {
+        TeamSlots slots = [];
+        using SqlConnection conn = new(Program.SqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = @"SELECT SlotID, SkillID, MinQty, GoalQty FROM dbo.GetTeamSlots(@TeamID)";
+        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
+        cmd.Parameters["@TeamID"].Value = TeamID;
+        cmd.Connection = conn;
+        conn.Open();
+        using SqlDataReader reader = cmd.ExecuteReader();
+        while (reader.Read()) {
+            Skill thisSkill = skillList.First(st => st.SkillID == reader.GetInt32(1));
+            slots.Add(
+                new() {
+                    SlotID = reader.GetInt32(0),
+                    SkillID = thisSkill.SkillID,
+                    Description = thisSkill.Description,
+                    SlotColor = thisSkill.SlotColor,
+                    MinQty = reader.GetInt32(2),
+                    GoalQty = reader.GetInt32(3)
+                }
+            );
+        }
+        reader.Close();
+        return slots;
     }
     /// <summary>
     /// 
