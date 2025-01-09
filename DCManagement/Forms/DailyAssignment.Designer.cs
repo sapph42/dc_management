@@ -90,29 +90,6 @@
             ToggleAvailabilityToolStripMenuItem.Size = new Size(180, 22);
             ToggleAvailabilityToolStripMenuItem.Text = "Toggle Availability";
             ToggleAvailabilityToolStripMenuItem.Click += ToggleAvailabilityToolStripMenuItem_Click;
-=======
-            label1 = new Label();
-            label2 = new Label();
-            SuspendLayout();
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new Point(0, 0);
-            label1.Name = "label1";
-            label1.Size = new Size(44, 15);
-            label1.TabIndex = 0;
-            label1.Text = "Dentist";
-            // 
-            // label2
-            // 
-            label2.AutoSize = true;
-            label2.Location = new Point(0, 16);
-            label2.Name = "label2";
-            label2.Size = new Size(54, 15);
-            label2.TabIndex = 1;
-            label2.Text = "Assistant";
->>>>>>> 888372b3dfd8cf57f19d17b08a5db20f312a2053
             // 
             // DailyAssignment
             // 
@@ -121,10 +98,6 @@
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1596, 742);
             Controls.Add(EditMenu);
-=======
-            Controls.Add(label2);
-            Controls.Add(label1);
->>>>>>> 888372b3dfd8cf57f19d17b08a5db20f312a2053
             Name = "DailyAssignment";
             Text = "DailyAssignment";
             Load += DailyAssignment_Load;
@@ -134,8 +107,6 @@
             EditMenu.ResumeLayout(false);
             EditMenu.PerformLayout();
             LabelContextMenu.ResumeLayout(false);
-=======
->>>>>>> 888372b3dfd8cf57f19d17b08a5db20f312a2053
             ResumeLayout(false);
             PerformLayout();
         }
@@ -150,9 +121,5 @@
         private ToolStripMenuItem RefreshToolStripMenuItem;
         private ContextMenuStrip LabelContextMenu;
         private ToolStripMenuItem ToggleAvailabilityToolStripMenuItem;
-=======
-        private Label label1;
-        private Label label2;
->>>>>>> 888372b3dfd8cf57f19d17b08a5db20f312a2053
     }
 }
