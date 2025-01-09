@@ -1,13 +1,12 @@
 ﻿using DCManagement.Classes;
 using Microsoft.Data.SqlClient;
-using System;
 using System.Data;
 using System.Diagnostics;
 
 namespace DCManagement.Forms;
 public partial class DailyAssignment : Form {
     private List<Skill> _skills = [];
-    private PersonCollection _people = [];
+    private readonly PersonCollection _people = [];
     private List<Team> _teams = [];
     private Team _float = new() {
         TeamID = 9999
@@ -15,25 +14,25 @@ public partial class DailyAssignment : Form {
     private Team _unavailable = new() {
         TeamID = -1
     };
-    private AvailablePeople _availablePeople = new();
-    private List<Person> _unavailablePeople = [];
-    private List<Team> _defunctTeams = [];
-    private Floorplan _floorplan;
+    private readonly AvailablePeople _availablePeople = new();
+    private readonly List<Person> _unavailablePeople = [];
+    private readonly List<Team> _defunctTeams = [];
+    private readonly Floorplan _floorplan;
     private Size _maxSize;
-    private List<Label> _labels = [];
+    private readonly List<Label> _labels = [];
     public DailyAssignment() {
         InitializeComponent();
         _floorplan = new Floorplan() {
             Locations = LocationCollection.GetLocations(),
             Client = this
         };
+        InitializeForm(true, true);
+    }
+    private void InitializeForm(bool baseInit = false, bool doResize = false, bool fullInit = false) {
         _maxSize = new() {
             Height = ClientSize.Height,
             Width = ClientSize.Width
         };
-        InitializeForm(true, true);
-    }
-    private void InitializeForm(bool baseInit = false, bool doResize = false, bool fullInit = false) {
         if (baseInit) {
             _floorplan.LoadFloorplan();
             if (doResize) 
@@ -240,12 +239,12 @@ public partial class DailyAssignment : Form {
     #endregion
     #region Label Transactions
     private void MoveUnassignedToFloat() {
-        Func<Team, bool> leadTeamsMissingLeads = t =>
+        static bool leadTeamsMissingLeads(Team t) =>
             !t.FillIfNoLead &&
             t.TeamLead is not null &&
             (!t.TeamLead.Active || !t.TeamLead.Available) &&
             t.TeamName != "Float";
-        Func<Team, bool> unleadTeamsMissingLeads = t =>
+        static bool unleadTeamsMissingLeads(Team t) =>
             !t.FillIfNoLead &&
             t.TeamLead is null &&
             t.TeamName != "Float";
@@ -388,14 +387,12 @@ public partial class DailyAssignment : Form {
             }
             BackgroundImageLayout = ImageLayout.Stretch;
         }
-        manualResizeTriggered = false;
     }
     #region Form Event Handlers
     private void DailyAssignment_DragDrop(object sender, DragEventArgs e) {
         if (e.Data is null)
             return;
-        Label? label = e.Data.GetData(typeof(Label)) as Label;
-        if (label is null)
+        if (e.Data.GetData(typeof(Label)) is not Label label)
             return;
         object? tag = label.Tag;
         if (tag is null)
@@ -406,7 +403,8 @@ public partial class DailyAssignment : Form {
         if (loc is null)
             return;
         Team? newTeam = _teams.Where(t => t.CurrentAssignment is not null && t.CurrentAssignment.Equals(loc)).FirstOrDefault();
-        if (newTeam is null && tag is not Team)
+        if (newTeam is null && tag is not Team
+            )
             newTeam = _defunctTeams.Where(t => t.PrimaryLocation is not null && t.PrimaryLocation.Equals(loc)).FirstOrDefault();
         if (newTeam is null) {
             if (_unavailable.LocationID == loc.LocID)
@@ -415,8 +413,8 @@ public partial class DailyAssignment : Form {
                 newTeam = _float;
         }
         Team currentTeam;
-        if (newTeam is null && tag is Team) {
-            currentTeam = (Team)tag;
+        if (newTeam is null && tag is Team defunctToValid) {
+            currentTeam = defunctToValid;
             if (currentTeam.CurrentAssignment is not null && currentTeam.CurrentAssignment.Equals(loc))
                 return;
             SuspendLayout();
@@ -424,16 +422,16 @@ public partial class DailyAssignment : Form {
             DeleteLables(currentTeam);
             currentTeam.CurrentAssignment = loc;
             if (_defunctTeams.Contains(currentTeam)) {
-                _defunctTeams.Remove(currentTeam);
                 _teams.Add(currentTeam);
             }
+            _defunctTeams.Remove(currentTeam);
             //foreach (var slotLabel in team.Slots.SelectMany(s => s.Assigned).Select(p => p.Label)) {
             //    DeleteLables(team);
             //}
             CreateLabels(currentTeam);
             ResumeLayout();
-        } else if (newTeam is not null && tag is Team) {
-            currentTeam = (Team)tag;
+        } else if (newTeam is not null && tag is Team teamToTeam) {
+            currentTeam = teamToTeam;
             if (currentTeam.CurrentAssignment is not null && currentTeam.CurrentAssignment.Equals(loc))
                 return;
             if (!(newTeam.Equals(_float) || newTeam.Equals(_unavailable)))
@@ -489,11 +487,11 @@ public partial class DailyAssignment : Form {
                     DeleteLables(currentTeam);
                 }
                 if (_defunctTeams.Contains(newTeam)) {
-                    _defunctTeams.Remove(newTeam);
                     _teams.Add(newTeam);
                 } else {
                     DeleteLables(newTeam);
                 }
+                _defunctTeams.Remove(newTeam);
                 newTeam.AssignPerson(person, slot.SkillID, true);
                 person.AssignmentLocked = true;
                 if (!wasFloat) {
@@ -542,13 +540,14 @@ public partial class DailyAssignment : Form {
             if (!person.Available) {
                 person.Team = _unavailable;
                 _unavailablePeople.Add(person);
+            } else {
+                person.Team = _teams.FirstOrDefault(t => t.TeamID == person.TeamID);
+                if (person.Team is null && person.Available) {
+                    person.Team = _float;
+                    _availablePeople.People.Add(person);
+                }
+                _people.Add(person);
             }
-            person.Team = _teams.Where(t => t.TeamID == person.TeamID).FirstOrDefault<Team>();
-            if (person.Team is null && person.Available) {
-                person.Team = _float;
-                _availablePeople.People.Add(person);
-            }
-            _people.Add(person);
         }
         MoveUnassignedToFloat();
         List<Skill> activeSkills = GetActiveSkills();
@@ -576,11 +575,9 @@ public partial class DailyAssignment : Form {
         }
     }
     private void ToggleAvailabilityToolStripMenuItem_Click(object sender, EventArgs e) {
-        ToolStripMenuItem? item = sender as ToolStripMenuItem;
-        if (item is null)
+        if (sender is not ToolStripMenuItem item)
             return;
-        ContextMenuStrip? owner = item.Owner as ContextMenuStrip;
-        if (owner is null)
+        if (item.Owner is not ContextMenuStrip owner)
             return;
         if (owner.SourceControl is not Label label)
             return;

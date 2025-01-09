@@ -82,8 +82,7 @@ public class TeamSlots : List<Slot> {
     }
     public void RemovePerson(Person person) {
         foreach (Slot slot in this) {
-            if (slot.Assigned.Contains(person))
-                slot.Assigned.Remove(person);
+            slot.Assigned.Remove(person);
         }
     }
     public Slot SlotBySkill(int SkillType) {

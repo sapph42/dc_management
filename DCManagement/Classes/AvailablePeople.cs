@@ -40,7 +40,7 @@ public class AvailablePeople {
     /// <returns>The selected Person</returns>
     public Person GetPerson(int SkillTypeID) {
         CleanUnavailable();
-        Person person = _people.Random();
+        Person person = _people.Where(p => p.HasSkill(SkillTypeID)).Random();
         _people.Remove(person);
         return person;
     }

@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DCManagement.Classes; 
+﻿namespace DCManagement.Classes; 
 public static class Extensions {
     private static readonly Random _rand = new();
     public static TSource Random<TSource>(this IEnumerable<TSource> source) {
-        if (source is null)
-            throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(source);
         IList<TSource> list = source as IList<TSource> ?? new List<TSource>(source);
         if (list.Count == 0)
             throw new InvalidOperationException("Sequence contains no elements");

@@ -1,10 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DCManagement.Classes; 
 public class Person {
@@ -112,8 +107,7 @@ public class Person {
         return person;
     }
     public void GenerateCenteredLabelTemplate(int centerXOn, int Y, Color backColor, Color? foreColor = null) {
-        if (foreColor is null)
-            foreColor = Color.Black;
+        foreColor ??= Color.Black;
         Label = new() {
             Text = $"{LastName}, {FirstName[..1]}.",
             AutoSize = true,
@@ -133,8 +127,7 @@ public class Person {
         Label.Location = loc;
     }
     public void GenerateLabelTemplate(Color backColor, Color? foreColor = null) {
-        if (foreColor is null)
-            foreColor = Color.Black;
+        foreColor ??= Color.Black;
         Label = new() {
             Text = $"{LastName}, {FirstName[..1]}.",
             AutoSize = true,

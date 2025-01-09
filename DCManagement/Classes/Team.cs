@@ -65,7 +65,6 @@ public class Team {
     }
     public static List<Team> FromDatabase() {
         List<Team> teams = [];
-        PersonCollection people = [];
         using SqlConnection conn = new(Program.SqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
@@ -158,8 +157,7 @@ public class Team {
             return;
         if (newTeam.Slots.Where(s => s.SkillID == skillID).FirstOrDefault<Slot>() is null) {
             try {
-                if (ignoreSkills is null)
-                    ignoreSkills = [];
+                ignoreSkills ??= [];
                 int otherSkill = person.Skills.First(s => !ignoreSkills.Contains(skillID)).SkillID;
                 ignoreSkills.Add(skillID);
                 ReassignPerson(person, newTeam, otherSkill, OverrideLock, Lock, ignoreSkills);

@@ -3,7 +3,7 @@ using System.Data;
 
 namespace DCManagement.Classes; 
 public class LocationCollection : Dictionary<int, Location> {
-    private Dictionary<int, string> _idsAndNames = [];
+    private readonly Dictionary<int, string> _idsAndNames = [];
     public Dictionary<int, string> ListboxDatasource {
         get => _idsAndNames;
     }
