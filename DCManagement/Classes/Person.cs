@@ -77,6 +77,43 @@ public class Person {
     public bool Equals(Person otherPerson) {
         return PersonID == otherPerson.PersonID;
     }
+    public void GenerateCenteredLabelTemplate(int centerXOn, int Y, Color backColor, Color? foreColor = null) {
+        if (foreColor is null)
+            foreColor = Color.Black;
+        Label = new() {
+            Text = $"{LastName}, {FirstName[..1]}.",
+            AutoSize = true,
+            BackColor = backColor,
+            ForeColor = (Color)foreColor,
+            Tag = this,
+            Width = 1,
+            Location = new Point(0, 0)
+        };
+        Size textSize = TextRenderer.MeasureText(Label.Text, Label.Font);
+        textSize.Width += Label.Padding.Left + Label.Padding.Right;
+        Label.Size = textSize;
+        Point loc = new() {
+            X = centerXOn - (Label.Width / 2),
+            Y = Y
+        };
+        Label.Location = loc;
+    }
+    public void GenerateLabelTemplate(Color backColor, Color? foreColor = null) {
+        if (foreColor is null)
+            foreColor = Color.Black;
+        Label = new() {
+            Text = $"{LastName}, {FirstName[..1]}.",
+            AutoSize = true,
+            BackColor = backColor,
+            ForeColor = (Color)foreColor,
+            Tag = this,
+            Width = 1,
+            Location = new Point(0, 0)
+        };
+        Size textSize = TextRenderer.MeasureText(Label.Text, Label.Font);
+        textSize.Width += Label.Padding.Left + Label.Padding.Right;
+        Label.Size = textSize;
+    }
     public List<int> GetSkillIDs() {
         if (Skills.Count > 0)
             return Skills.Select(s => s.SkillID).ToList();

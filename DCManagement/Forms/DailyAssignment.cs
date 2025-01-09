@@ -1,5 +1,6 @@
 ﻿using DCManagement.Classes;
 using Microsoft.Data.SqlClient;
+using System;
 using System.Data;
 using System.Diagnostics;
 
@@ -688,7 +689,7 @@ public partial class DailyAssignment : Form {
     }
     #endregion
     #region Label Event Handlers
-    private void SlotLabel_MouseDown(object? sender, MouseEventArgs e) {
+    internal void SlotLabel_MouseDown(object? sender, MouseEventArgs e) {
         if (e.Button == MouseButtons.Left) {
             Label? label = sender as Label;
             if (label is not null)
@@ -697,6 +698,12 @@ public partial class DailyAssignment : Form {
     }
     #endregion
     #region Draw People
+    private void AddLabels() {
+        foreach (var team in _teams) {
+            team.LabelPattern = DetermineTeamPattern(team);
+            CreateLabels(team);
+        }
+    }
     private static LabelPattern DetermineTeamPattern(Team team) {
         if (team.TeamLead is null) {
             int assignedToTeam = team.Slots.Select(s => s.Assigned.Count).Sum();
@@ -734,19 +741,30 @@ public partial class DailyAssignment : Form {
     private void CreateLabels(Team team) {
         if (team.CurrentAssignment is null && team.PrimaryLocation is null)
             return;
-        Rectangle rect = team.CurrentAssignment?.Rect ?? team.PrimaryLocation!.Rect;
-        rect = _floorplan.TransformRectangle(rect);
+
+        Rectangle rect = _floorplan.TransformRectangle(
+            team.CurrentAssignment?.Rect ?? team.PrimaryLocation!.Rect
+        );
+
         Point topLeft = rect.Location;
         int centerX = topLeft.X + rect.Width / 2;
         int topY = topLeft.Y + (int)(10 * _floorplan.GetScale().Y);
+        int currentY = topY;
         Point lastLabelLoc = new(0, topY);
+        Person teamLead;
+        Color slotColor;
         switch (team.LabelPattern) {
             case LabelPattern.None:
                 return;
             case LabelPattern.MultiStacked:
                 SuspendLayout();
-                int stackCount = team.Slots.SelectMany(s => s.Assigned).Where(p => p is not null).Count();
-                var slots = team.Slots.Select(s => new KeyValuePair<Slot, List<Person>>(s, s.Assigned)).ToList();
+                int stackCount = team.Slots
+                                     .SelectMany(s => s.Assigned)
+                                     .Where(p => p is not null)
+                                     .Count();
+                var slots = team.Slots
+                                .Select(s => new KeyValuePair<Slot, List<Person>>(s, s.Assigned))
+                                .ToList();
                 if (stackCount == 0)
                     break;
                 int firstY = topY + 16;
@@ -757,23 +775,10 @@ public partial class DailyAssignment : Form {
                     var slotInfo = slot.Key;
                     for (int j = 0; j < slot.Value.Count; j++) {
                         var person = slot.Value[j];
-                        person.Label = new() {
-                            Text = $"{person.LastName}, {person.FirstName[..1]}.",
-                            AutoSize = true,
-                            BackColor = slotInfo.SlotColor,
-                            ForeColor = Color.Black,
-                            Tag = person,
-                            Width = 1,
-                            Location = new Point(0, 0)
-                        };
+                        currentY = firstY + (spacing * (i + 1) * j);
+                        person.GenerateCenteredLabelTemplate(centerX, currentY, slotInfo.SlotColor);
+                        lastLabelLoc = person.Label.Location;
                         Controls.Add(person.Label);
-                        person.Label.PerformLayout();
-                        int currentY = firstY + (spacing * (i + 1) * j);
-                        lastLabelLoc = new() {
-                            X = centerX - (person.Label.Width / 2),
-                            Y = currentY
-                        };
-                        person.Label.Location = lastLabelLoc;
                         _labels.Add(person.Label);
                     }
                 }
@@ -783,65 +788,33 @@ public partial class DailyAssignment : Form {
             case LabelPattern.SingleAsstwEFDA:
                 SuspendLayout();
                 if (team.TeamLead is not null && team.TeamLead.Available) {
-                    team.TeamLead.Label = new() {
-                        Text = $"{team.TeamLead.LastName}, {team.TeamLead.FirstName[..1]}.",
-                        AutoSize = true,
-                        BackColor = team.TeamLead.Skills.OrderByDescending(s => s.Priority).First().SlotColor,
-                        ForeColor = Color.Black,
-                        Tag = team,
-                        Width = 1,
-                        Location = new Point(0, 0)
-                    };
-                    Controls.Add(team.TeamLead.Label);
-                    team.TeamLead.Label.PerformLayout();
-                    lastLabelLoc = new() {
-                        X = centerX - (team.TeamLead.Label.Width / 2),
-                        Y = lastLabelLoc.Y + 16
-                    };
-                    team.TeamLead.Label.Location = lastLabelLoc;
-                    _labels.Add(team.TeamLead.Label);
+                    teamLead = team.TeamLead;
+                    currentY = lastLabelLoc.Y + 16;
+                    slotColor = teamLead.Skills.OrderByDescending(s => s.Priority).First().SlotColor;
+                    teamLead.GenerateCenteredLabelTemplate(centerX, currentY, slotColor);
+                    lastLabelLoc = teamLead.Label.Location;
+                    Controls.Add(teamLead.Label);
+                    _labels.Add(teamLead.Label);
                     foreach (var slot in team.Slots) {
                         foreach (var person in slot.Assigned.Except([team.TeamLead])) {
                             if (person is null) continue;
-                            person.Label = new() {
-                                Text = $"{person.LastName}, {person.FirstName[..1]}.",
-                                AutoSize = true,
-                                BackColor = slot.SlotColor,
-                                ForeColor = Color.Black,
-                                Tag = person,
-                                Width = 1,
-                                Location = new Point(0, 0)
-                            };
+
+                            currentY = lastLabelLoc.Y + 16;
+                            person.GenerateCenteredLabelTemplate(centerX, currentY, slotColor);
+                            lastLabelLoc = person.Label.Location;
                             Controls.Add(person.Label);
-                            person.Label.PerformLayout();
-                            lastLabelLoc = new() {
-                                X = centerX - (person.Label.Width / 2),
-                                Y = lastLabelLoc.Y + 16
-                            };
-                            person.Label.Location = lastLabelLoc;
                             _labels.Add(person.Label);
                         }
                     }
                 } else {
+                    currentY = lastLabelLoc.Y;
                     foreach (var slot in team.Slots) {
                         foreach (var person in slot.Assigned) {
                             if (person is null) continue;
-                            person.Label = new() {
-                                Text = $"{person.LastName}, {person.FirstName[..1]}.",
-                                AutoSize = true,
-                                BackColor = slot.SlotColor,
-                                ForeColor = Color.Black,
-                                Tag = person,
-                                Width = 1,
-                                Location = new Point(0, 0)
-                            };
+                            currentY = lastLabelLoc.Y + 16;
+                            person.GenerateCenteredLabelTemplate(centerX, currentY, slot.SlotColor);
+                            lastLabelLoc = person.Label.Location;
                             Controls.Add(person.Label);
-                            person.Label.PerformLayout();
-                            lastLabelLoc = new() {
-                                X = centerX - (person.Label.Width / 2),
-                                Y = lastLabelLoc.Y + 16
-                            };
-                            person.Label.Location = lastLabelLoc;
                             _labels.Add(person.Label);
                         }
                     }
@@ -851,96 +824,55 @@ public partial class DailyAssignment : Form {
             case LabelPattern.DualAsstPlus:
             case LabelPattern.DualAsstwEFDA:
             case LabelPattern.DualAsstwEFDAPlus:
+                if (team.TeamLead is null)
+                    ArgumentNullException.ThrowIfNull(nameof(team.TeamLead));
                 SuspendLayout();
-                team.TeamLead!.Label = new() {
-                    Text = team.TeamLead.LastName,
-                    AutoSize = true,
-                    BackColor = team.TeamLead.Skills.OrderByDescending(s => s.Priority).First().SlotColor,
-                    ForeColor = Color.Black,
-                    Tag = team,
-                    Width = 1,
-                    Location = new Point(0, 0)
-                };
-                Controls.Add(team.TeamLead.Label);
-                team.TeamLead.Label.PerformLayout();
-                lastLabelLoc = new() {
-                    X = centerX - (team.TeamLead.Label.Width / 2),
-                    Y = lastLabelLoc.Y + 16
-                };
-                team.TeamLead.Label.Location = lastLabelLoc;
-                _labels.Add(team.TeamLead.Label);
+                teamLead = team.TeamLead!;
+                currentY = lastLabelLoc.Y + 16;
+                slotColor = teamLead.Skills.OrderByDescending(s => s.Priority).First().SlotColor;
+                teamLead.GenerateCenteredLabelTemplate(centerX, currentY, slotColor);
+                lastLabelLoc = teamLead.Label.Location;
+                Controls.Add(teamLead.Label);
+                _labels.Add(teamLead.Label);
+                slotColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor;
                 var assistants = team
                     .Slots
                     .Where(s => s.Description == "Dental Assistant")
                     .SelectMany(s => s.Assigned)
-                    .Except([team.TeamLead])
+                    .Except([teamLead])
                     .ToArray();
                 var efAssistant = team
                     .Slots
                     .Where(s => s.Description == "EFDA")
                     .SelectMany(s => s.Assigned)
-                    .Except([team.TeamLead])
+                    .Except([teamLead])
                     .Except(assistants)
                     .FirstOrDefault<Person>();
-                assistants[0].Label = new() {
-                    Text = $"{assistants[0].LastName}, {assistants[0].FirstName[..1]}.",
-                    AutoSize = true,
-                    BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
-                    ForeColor = Color.Black,
-                    Tag = assistants[0],
-                    Width = 1,
-                    Location = new Point(0, 0)
-                };
-                assistants[1].Label = new() {
-                    Text = $"{assistants[1].LastName}, {assistants[1].FirstName[..1]}.",
-                    AutoSize = true,
-                    BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
-                    ForeColor = Color.Black,
-                    Tag = assistants[1],
-                    Width = 1,
-                    Location = new Point(0, 0)
-                };
-                Controls.Add(assistants[0].Label);
-                assistants[0].Label.PerformLayout();
-                Controls.Add(assistants[1].Label);
-                assistants[1].Label.PerformLayout();
+                assistants[0].GenerateLabelTemplate(slotColor);
+                assistants[1].GenerateLabelTemplate(slotColor);
                 int totalWidth = assistants[0].Label.Width + assistants[1].Label.Width + 5;
                 int startX = centerX - (totalWidth / 2);
                 assistants[0].Label!.Location = new Point(startX, lastLabelLoc.Y + 16);
                 lastLabelLoc = new Point(startX + assistants[0].Label!.Width + 5, lastLabelLoc.Y + 16);
                 assistants[1].Label!.Location = lastLabelLoc;
+                Controls.Add(assistants[0].Label);
+                Controls.Add(assistants[1].Label);
                 _labels.Add(assistants[0].Label);
                 _labels.Add(assistants[1].Label);
                 if (efAssistant is not null) {
-                    efAssistant.Label = new() {
-                        Text = $"{efAssistant.LastName}, {efAssistant.FirstName[..1]}.",
-                        AutoSize = true,
-                        BackColor = _skills.Where(s => s.Description == "EFDA").First().SlotColor,
-                        ForeColor = Color.Black,
-                        Tag = efAssistant,
-                        Width = 1,
-                        Location = new Point(0, 0)
-                    };
+                    slotColor = _skills.Where(s => s.Description == "EFDA").First().SlotColor;
+                    currentY = lastLabelLoc.Y + 16;
+                    efAssistant.GenerateCenteredLabelTemplate(centerX, currentY, slotColor);
+                    lastLabelLoc = efAssistant.Label.Location;
                     Controls.Add(efAssistant.Label);
-                    efAssistant.Label.PerformLayout();
-                    lastLabelLoc = new Point(centerX - efAssistant.Label.Width / 2, lastLabelLoc.Y + 16);
-                    efAssistant.Label.Location = lastLabelLoc;
                     _labels.Add(efAssistant.Label);
                 }
                 foreach (var assistant in assistants[2..]) {
-                    assistant.Label = new() {
-                        Text = $"{assistant.LastName}, {assistant.FirstName[..1]}.",
-                        AutoSize = true,
-                        BackColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor,
-                        ForeColor = Color.Black,
-                        Tag = assistant,
-                        Width = 1,
-                        Location = new Point(0, 0)
-                    };
+                    slotColor = _skills.Where(s => s.Description == "Dental Assistant").First().SlotColor;
+                    currentY = lastLabelLoc.Y + 16;
+                    assistant.GenerateCenteredLabelTemplate(centerX, currentY, slotColor);
+                    lastLabelLoc = assistant.Label.Location;
                     Controls.Add(assistant.Label);
-                    assistant.Label.PerformLayout();
-                    lastLabelLoc = new Point(centerX - assistant.Label.Width / 2, lastLabelLoc.Y + 16);
-                    assistant.Label.Location = lastLabelLoc;
                     _labels.Add(assistant.Label);
                 }
                 break;
@@ -948,25 +880,23 @@ public partial class DailyAssignment : Form {
                 return;
         }
 
-        foreach (var slotLabel in team.Slots.SelectMany(s => s.Assigned).Select(p => p.Label)) {
-            slotLabel.MouseDown += SlotLabel_MouseDown;
-            slotLabel.ContextMenuStrip = LabelContextMenu;
+        foreach (var label in _labels) {
+            label.MouseDown += SlotLabel_MouseDown;
+            label.ContextMenuStrip = LabelContextMenu;
         }
         ResumeLayout();
     }
     private void DeleteLables(Team team) {
         SuspendLayout();
-        foreach (var slotLabel in team.Slots.SelectMany(s => s.Assigned).Select(p => p.Label)) {
-            _labels.Remove(slotLabel);
-            Controls.Remove(slotLabel);
-        }
+        team.Slots
+            .SelectMany(s => s.Assigned)
+            .Select(p => p.Label)
+            .ToList()
+            .ForEach(label => {
+                _labels.Remove(label);
+                Controls.Remove(label);
+            });
         ResumeLayout();
-    }
-    private void AddLabels() {
-        foreach (var team in _teams) {
-            team.LabelPattern = DetermineTeamPattern(team);
-            CreateLabels(team);
-        }
     }
     private void DrawFloat() {
         const int horizontalSpacing = 5;
