@@ -82,7 +82,7 @@ public class TeamSlots : List<Slot> {
     }
     public void RemovePerson(Person person) {
         foreach (Slot slot in this) {
-            slot.Assigned.Remove(person);
+            slot.UnassignToSlot(person);
         }
     }
     public Slot SlotBySkill(int SkillType) {

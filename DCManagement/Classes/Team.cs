@@ -57,8 +57,7 @@ public class Team {
         Slots
             .Where(s => s.SkillID == skillID)
             .First()
-            .Assigned
-            .Add(person);
+            .AssignToSlot(person);
     }
     public bool Equals(Team otherTeam) {
         return TeamID == otherTeam.TeamID;
@@ -169,8 +168,7 @@ public class Team {
             .Slots
             .Where(s => s.SkillID == skillID)
             .First()
-            .Assigned
-            .Add(person);
+            .AssignToSlot(person);
         if (Lock)
             person.AssignmentLocked = true;
     }

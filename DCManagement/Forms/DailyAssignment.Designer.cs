@@ -32,6 +32,7 @@
             CancelPendingActionToolStripMenuItem = new ToolStripMenuItem();
             LabelContextMenu = new ContextMenuStrip(components);
             ToggleAvailabilityToolStripMenuItem = new ToolStripMenuItem();
+            FinalizeAssignmentsToolStripMenuItem = new ToolStripMenuItem();
             EditMenu.SuspendLayout();
             LabelContextMenu.SuspendLayout();
             SuspendLayout();
@@ -47,7 +48,7 @@
             // 
             // EditTSMI
             // 
-            EditTSMI.DropDownItems.AddRange(new ToolStripItem[] { RefreshToolStripMenuItem });
+            EditTSMI.DropDownItems.AddRange(new ToolStripItem[] { RefreshToolStripMenuItem, FinalizeAssignmentsToolStripMenuItem });
             EditTSMI.Name = "EditTSMI";
             EditTSMI.Size = new Size(39, 20);
             EditTSMI.Text = "Edit";
@@ -55,7 +56,7 @@
             // RefreshToolStripMenuItem
             // 
             RefreshToolStripMenuItem.Name = "RefreshToolStripMenuItem";
-            RefreshToolStripMenuItem.Size = new Size(113, 22);
+            RefreshToolStripMenuItem.Size = new Size(184, 22);
             RefreshToolStripMenuItem.Text = "Refresh";
             RefreshToolStripMenuItem.Click += RefreshToolStripMenuItem_Click;
             // 
@@ -91,6 +92,13 @@
             ToggleAvailabilityToolStripMenuItem.Text = "Toggle Availability";
             ToggleAvailabilityToolStripMenuItem.Click += ToggleAvailabilityToolStripMenuItem_Click;
             // 
+            // FinalizeAssignmentsToolStripMenuItem
+            // 
+            FinalizeAssignmentsToolStripMenuItem.Name = "FinalizeAssignmentsToolStripMenuItem";
+            FinalizeAssignmentsToolStripMenuItem.Size = new Size(184, 22);
+            FinalizeAssignmentsToolStripMenuItem.Text = "Finalize Assignments";
+            FinalizeAssignmentsToolStripMenuItem.Click += FinalizeAssignmentsToolStripMenuItem_Click;
+            // 
             // DailyAssignment
             // 
             AllowDrop = true;
@@ -122,5 +130,6 @@
         private ToolStripMenuItem RefreshToolStripMenuItem;
         private ContextMenuStrip LabelContextMenu;
         private ToolStripMenuItem ToggleAvailabilityToolStripMenuItem;
+        private ToolStripMenuItem FinalizeAssignmentsToolStripMenuItem;
     }
 }

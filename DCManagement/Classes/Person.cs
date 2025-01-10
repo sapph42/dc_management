@@ -23,6 +23,7 @@ public class Person {
         }
     }
     public List<Skill> Skills { get; set; } = [];
+    public Slot? AssignedSlot { get; set; }
     public bool Active { 
         get => _active; 
         set => _active = value; 

@@ -35,7 +35,7 @@ public partial class DailyAssignment : Form {
         };
         if (baseInit) {
             _floorplan.LoadFloorplan();
-            if (doResize) 
+            if (doResize)
                 ResizeForm();
             BackgroundImage = _floorplan.ImageWithLocations;
         }
@@ -80,7 +80,7 @@ public partial class DailyAssignment : Form {
                     else
                         team.AssignPerson(thisPerson, SkillID);
                     Slot slot = team.Slots.First(s => s.SkillID == kvp.Key);
-                    slot.Assigned.Add(thisPerson);
+                    slot.AssignToSlot(thisPerson);
                     thisPerson.Team = team;
                 }
             }
@@ -102,7 +102,7 @@ public partial class DailyAssignment : Form {
                 if (donorTeam is null)
                     continue;
                 Slot donorTeamSlot = donorTeam.Slots.First(s => s.SkillID == kvp.Key);
-                donorTeam.ReassignPerson(donorTeamSlot.Assigned.Random(), team, donorTeamSlot.SkillID);
+                donorTeam.ReassignPerson(donorTeamSlot.GetRandomAssignee(), team, donorTeamSlot.SkillID);
             }
         }
         if (!_teams.Any(t => !t.HasGoalStaffingBySkill(SkillID)))
@@ -144,7 +144,7 @@ public partial class DailyAssignment : Form {
                     else
                         team.AssignPerson(thisPerson, SkillID);
                     Slot slot = team.Slots.First(s => s.SkillID == kvp.Key);
-                    slot.Assigned.Add(thisPerson);
+                    slot.AssignToSlot(thisPerson);
                     thisPerson.Team = team;
                 }
             }
@@ -166,7 +166,7 @@ public partial class DailyAssignment : Form {
                 if (donorTeam is null)
                     continue;
                 Slot donorTeamSlot = donorTeam.Slots.First(s => s.SkillID == kvp.Key);
-                donorTeam.ReassignPerson(donorTeamSlot.Assigned.Random(), team, donorTeamSlot.SkillID);
+                donorTeam.ReassignPerson(donorTeamSlot.GetRandomAssignee(), team, donorTeamSlot.SkillID);
             }
         }
         if (!_teams.Any(t => !t.HasMinimumStaffingBySkill(SkillID)))
@@ -215,7 +215,7 @@ public partial class DailyAssignment : Form {
             for (int j = 0; j < team.Slots.Count; j++) {
                 Slot slot = team.Slots[j];
                 int skillID = slot.SkillID;
-                slot.Assigned = GetDefaultSlotAssignments((int)team.TeamID, skillID);
+                slot.SetAssignments(GetDefaultSlotAssignments((int)team.TeamID, skillID));
                 Debug.WriteLine($"{_teams[i].TeamID}:{_teams[i].Slots[j].SlotID} :: {_teams[i].Slots[j].Description}");
             }
         }
@@ -253,10 +253,11 @@ public partial class DailyAssignment : Form {
             Team team = defunctTeams[defunctIterator];
             for (int slotIterator = 0; slotIterator < team.Slots.Count; slotIterator++) {
                 Slot slot = team.Slots[slotIterator];
-                for (int personIterator = 0; personIterator < slot.Assigned.Count; personIterator++) {
-                    Person floater = slot.Assigned[personIterator];
+                for (int personIterator = 0; personIterator < slot.AssignedToSlot; personIterator++) {
+                    Person floater = slot.GetAssignee(personIterator);
                     if (!floater.Available || !floater.Active) {
                         _ = _availablePeople.People.Remove(floater);
+                        floater.AssignedSlot = null;
                         continue;
                     }
                     if (floater.Team is null)
@@ -264,19 +265,22 @@ public partial class DailyAssignment : Form {
                     else
                         floater.Team.ReassignPerson(floater, _float, slot.SkillID);
                     _availablePeople.People.Add(floater);
+                    floater.AssignedSlot = null;
                 }
             }
             _teams.Remove(team);
             _defunctTeams.Add(team);
         }
-        foreach (var person in _people.Values) {
+        foreach (Person person in _people.Values) {
             if (person.Team is not null && defunctTeams.Contains(person.Team)) {
                 if (!person.Available || !person.Active) {
                     _ = _availablePeople.People.Remove(person);
+                    person.AssignedSlot = null;
                     continue;
                 }
                 person.Team.ReassignPerson(person, _float, person.Skills.OrderBy(p => p.Priority).First().SkillID);
                 _availablePeople.People.Add(person);
+                person.AssignedSlot = null;
             }
         }
         //First lets look at teams that have available personnel
@@ -295,13 +299,14 @@ public partial class DailyAssignment : Form {
 
             for (int j = 0; j < team.Slots.Count; j++) {
                 Slot slot = team.Slots[j];
-                for (int k = 0; k < slot.Assigned.Count; k++) {
-                    Person floater = slot.Assigned[k];
+                for (int k = 0; k < slot.AssignedToSlot; k++) {
+                    Person floater = slot.GetAssignee(k);
                     if (floater.Team is null)
                         _float.AssignPerson(floater, slot.SkillID);
                     else
                         floater.Team.ReassignPerson(floater, _float, slot.SkillID);
                     _availablePeople.People.Add(floater);
+                    floater.AssignedSlot = null;
                 }
             }
         }
@@ -316,6 +321,7 @@ public partial class DailyAssignment : Form {
                 thisPerson.Team.ReassignPerson(thisPerson, _float, thisPerson.Skills.OrderBy(s => s.Priority).First().SkillID);
             thisPerson.Team = _float;
             _availablePeople.People.Add(thisPerson);
+            thisPerson.AssignedSlot = null;
         }
     }
     private void ToggleUnavailable(Person person, bool toFloat = true) {
@@ -347,6 +353,7 @@ public partial class DailyAssignment : Form {
                 }
             }
             DrawUnavailable();
+            person.AssignedSlot = null;
         } else {
             cmd.CommandText = "dbo.AvailableToday";
             _ = cmd.ExecuteNonQuery();
@@ -362,6 +369,7 @@ public partial class DailyAssignment : Form {
         person.Available = true;
         person.Team = _float;
         _availablePeople.People.Add(person);
+        person.AssignedSlot = null;
         DrawFloat();
     }
     #endregion
@@ -439,8 +447,8 @@ public partial class DailyAssignment : Form {
             SuspendLayout();
             for (int i = 0; i < currentTeam.Slots.Count; i++) {
                 var slot = currentTeam.Slots[i];
-                for (int j = 0; j < slot.Assigned.Count; j++) {
-                    Person assignee = slot.Assigned[j];
+                for (int j = 0; j < slot.AssignedToSlot; j++) {
+                    Person assignee = slot.GetAssignee(j);
                     if (assignee.Equals(currentTeam.TeamLead!)) {
                         if (newTeam.Equals(_unavailable)) {
                             ToggleUnavailable(assignee);
@@ -454,7 +462,7 @@ public partial class DailyAssignment : Form {
                     }
                     MoveToFloat(assignee);
                 }
-                slot.Assigned.Clear();
+                slot.UnassignAll();
             }
             _teams.Remove(currentTeam);
             _defunctTeams.Add(currentTeam);
@@ -567,6 +575,49 @@ public partial class DailyAssignment : Form {
     }
     #endregion
     #region Control Event Handlers
+    private void FinalizeAssignmentsToolStripMenuItem_Click(object sender, EventArgs e) {
+        Cursor.Current = Cursors.WaitCursor;
+        using SqlConnection conn = new(Program.SqlConnectionString);
+        using SqlCommand teamCmd = new();
+        using SqlCommand personCmd = new();
+        conn.Open();
+        teamCmd.CommandType = CommandType.StoredProcedure;
+        teamCmd.CommandText = @"dbo.DailyTeamWrite";
+        teamCmd.Connection = conn;
+        personCmd.CommandType = CommandType.StoredProcedure;
+        personCmd.CommandText = @"dbo.DailyPersonWrite";
+        personCmd.Connection = conn;
+
+        teamCmd.Parameters.Add("@TeamID", SqlDbType.Int);
+        teamCmd.Parameters.Add("@LocID", SqlDbType.Int);
+        teamCmd.Parameters.Add("@Active", SqlDbType.Bit);
+        personCmd.Parameters.Add("@PersonID", SqlDbType.Int);
+        personCmd.Parameters.Add("@SlotID", SqlDbType.Int);
+        foreach (var team in _teams) {
+            teamCmd.Parameters["@TeamID"].Value = team.TeamID;
+            if (team.CurrentAssignment is null) {
+                teamCmd.Parameters["@LocID"].Value = DBNull.Value;
+                teamCmd.Parameters["@Active"].Value = false;
+            }
+            else {
+                teamCmd.Parameters["@LocID"].Value = team.CurrentAssignment.LocID;
+                teamCmd.Parameters["@Active"].Value = true;
+            }
+            _ = teamCmd.ExecuteNonQuery();
+
+            foreach (var slot in team.Slots) {
+                if (slot is null || slot.AssignedToSlot == 0)
+                    continue;
+                foreach (var person in slot.Assigned) {
+                    personCmd.Parameters["@PersonID"].Value = person.PersonID;
+                    personCmd.Parameters["@SlotID"].Value = slot.SlotID;
+                    _ = personCmd.ExecuteNonQuery();
+                }
+            }
+        }
+        conn.Close();
+        Cursor.Current = Cursors.Default;
+    }
     private void RefreshToolStripMenuItem_Click(object sender, EventArgs e) {
         foreach (var team in _teams) {
             team.LabelPattern = DetermineTeamPattern(team);
@@ -607,7 +658,7 @@ public partial class DailyAssignment : Form {
     }
     private static LabelPattern DetermineTeamPattern(Team team) {
         if (team.TeamLead is null) {
-            int assignedToTeam = team.Slots.Select(s => s.Assigned.Count).Sum();
+            int assignedToTeam = team.Slots.Select(s => s.AssignedToSlot).Sum();
             if (assignedToTeam == 0)
                 return LabelPattern.None;
             else if (assignedToTeam == 1)
@@ -663,21 +714,18 @@ public partial class DailyAssignment : Form {
                                      .SelectMany(s => s.Assigned)
                                      .Where(p => p is not null)
                                      .Count();
-                var slots = team.Slots
-                                .Select(s => new KeyValuePair<Slot, List<Person>>(s, s.Assigned))
-                                .ToList();
                 if (stackCount == 0)
                     break;
                 int firstY = topY + 16;
                 int lastY = rect.Bottom - 26;
                 int spacing = (stackCount > 1) ? (lastY - firstY) / (stackCount - 1) : 0;
-                for (int i = 0; i < slots.Count; i++) {
-                    var slot = slots[i];
-                    var slotInfo = slot.Key;
-                    for (int j = 0; j < slot.Value.Count; j++) {
-                        var person = slot.Value[j];
+                for (int i = 0; i < team.Slots.Count; i++) {
+                    Slot slot = team.Slots[i];
+                    slotColor = slot.SlotColor;
+                    for (int j = 0; j < slot.AssignedToSlot; j++) {
+                        var person = slot.GetAssignee(j);
                         currentY = firstY + (spacing * (i + 1) * j);
-                        person.GenerateCenteredLabelTemplate(centerX, currentY, slotInfo.SlotColor);
+                        person.GenerateCenteredLabelTemplate(centerX, currentY, slotColor);
                         lastLabelLoc = person.Label.Location;
                         Controls.Add(person.Label);
                         _labels.Add(person.Label);
@@ -805,7 +853,7 @@ public partial class DailyAssignment : Form {
             .ToList()
             .ForEach(label => {
                 Controls.Remove(label);
-        });
+            });
     }
     private void DrawFloat() {
         const int horizontalSpacing = 5;
