@@ -3,10 +3,23 @@ using Microsoft.Data.SqlClient;
 
 namespace DCManagement.Classes; 
 public class Floorplan {
+    public enum Edge {
+        None,
+        Top,
+        Bottom,
+        Left,
+        Right,
+        TopRight,
+        TopLeft,
+        BottomRight,
+        BottomLeft
+    }
+    private Dictionary<Point, Edge> _points = [];
     public Image BaseImage { get; set; }
     public Image? ImageWithLocations { get; set; }
     public Image? ImageMoving { get; set; }
     public LocationCollection Locations { get; set; } = [];
+    public Dictionary<Point, Edge> BorderPoints { get => _points; }
     public required Form Client { get; set; }
     public Size ClientSize { 
         get {
@@ -28,33 +41,56 @@ public class Floorplan {
     }
     public Floorplan () {
         BaseImage = LoadFloorplan();
+        AddLocations(LocationCollection.GetLocations());
         if (ImageWithLocations is not null)
             ImageMoving = (Image)ImageWithLocations.Clone();
     }
-    public Image LoadFloorplan() {
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT TOP (1) Image FROM Floorplan";
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        if (reader.Read())
-            if (!reader.IsDBNull(0))
-                using (MemoryStream stream = new()) {
-                    using Stream data = reader.GetStream(0);
-                    data.CopyTo(stream);
-                    BaseImage = Image.FromStream(stream);
-                }
-        if (BaseImage is null)
-            throw new InvalidDataException("Could not load floorplan from database");
-        reader.Close();
-        ImageWithLocations = DrawLocations();
-        return BaseImage;
+    public void AddLocation(Location location) {
+        if (Locations.ContainsKey(location.LocID))
+            return;
+        Locations.Add(location.LocID, location);
+        AddPerimeterPoints(location.Rect);
+    }
+    public void AddLocations(LocationCollection locations) {
+        Locations = locations;
+        foreach (Location location in Locations.Values) {
+            AddPerimeterPoints(location.Rect);
+        }
+    }
+    private void AddPerimeterPoints(Rectangle rect) {
+        // Top edge
+        for (int x = rect.Left; x <= rect.Right; x++) {
+            var point = new Point(x, rect.Top);
+            _points[point] = (x == rect.Left) ? Edge.TopLeft :
+                             (x == rect.Right) ? Edge.TopRight : Edge.Top;
+        }
+
+        // Bottom edge
+        for (int x = rect.Left; x <= rect.Right; x++) {
+            var point = new Point(x, rect.Bottom);
+            _points[point] = (x == rect.Left) ? Edge.BottomLeft :
+                             (x == rect.Right) ? Edge.BottomRight : Edge.Bottom;
+        }
+
+        // Left edge (excluding corners)
+        for (int y = rect.Top + 1; y < rect.Bottom; y++) {
+            var point = new Point(rect.Left, y);
+            _points[point] = Edge.Left;
+        }
+
+        // Right edge (excluding corners)
+        for (int y = rect.Top + 1; y < rect.Bottom; y++) {
+            var point = new Point(rect.Right, y);
+            _points[point] = Edge.Right;
+        }
     }
     public Image? DrawLocations() {
         if (BaseImage is null || Locations is null || !Locations.Any())
             return null;
+        _points.Clear();
+        foreach (var location in Locations.Values) {
+            AddPerimeterPoints(location.Rect);
+        }
         return DrawLocations(Locations);
     }
     public Image? DrawLocations(LocationCollection usingCollection) {
@@ -71,20 +107,6 @@ public class Floorplan {
             graphics.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), textBrush, location.UpperLeft);
         }
         return image;
-    }
-    public void SetMoving(LocationCollection usingCollection) {
-        if (BaseImage is null || usingCollection is null || !usingCollection.Any())
-            return;
-        Bitmap image = new(BaseImage);
-        using Graphics g = Graphics.FromImage(image);
-        using Pen pen = new(Color.Black);
-        using Brush brush = pen.Brush;
-        pen.Width = 1f;
-        foreach (var location in usingCollection.Values) {
-            g.DrawRectangle(pen, location.Rect);
-            g.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), brush, location.UpperLeft);
-        }
-        ImageMoving = image;
     }
     public Image DrawMovingRectangle(Rectangle rect) {
         Pen pen;
@@ -113,6 +135,78 @@ public class Floorplan {
         float scaleX = (float)Client.ClientSize.Width / BaseImage.Size.Width;
         float scaleY = (float)Client.ClientSize.Height / BaseImage.Size.Height;
         return new PointF(scaleX, scaleY);
+    }
+    public Location? FindByPoint(Point point) => Locations.FindByPoint(point);
+    public Edge IsPointOnPerimeter(Point point) => _points.TryGetValue(point, out var edge) ? edge : Edge.None;
+    public Image LoadFloorplan() {
+        using SqlConnection conn = new(Program.SqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = @"SELECT TOP (1) Image FROM Floorplan";
+        cmd.Connection = conn;
+        conn.Open();
+        using SqlDataReader reader = cmd.ExecuteReader();
+        if (reader.Read())
+            if (!reader.IsDBNull(0))
+                using (MemoryStream stream = new()) {
+                    using Stream data = reader.GetStream(0);
+                    data.CopyTo(stream);
+                    BaseImage = Image.FromStream(stream);
+                }
+        if (BaseImage is null)
+            throw new InvalidDataException("Could not load floorplan from database");
+        reader.Close();
+        ImageWithLocations = DrawLocations();
+        return BaseImage;
+    }
+    public void RemoveLocation(int locID) {
+        if (Locations.TryGetValue(locID, out var location))
+            RemoveLocation(location);
+    }
+    public void RemoveLocation(Location location) {
+        RemovePerimeterPoints(location.Rect);
+        Locations.Remove(location.LocID);
+    }
+    private void RemovePerimeterPoints(Rectangle rect) {
+        // Top edge
+        for (int x = rect.Left; x <= rect.Right; x++) {
+            var point = new Point(x, rect.Top);
+            _points[point] = (x == rect.Left) ? Edge.TopLeft :
+                             (x == rect.Right) ? Edge.TopRight : Edge.Top;
+        }
+
+        // Bottom edge
+        for (int x = rect.Left; x <= rect.Right; x++) {
+            var point = new Point(x, rect.Bottom);
+            _points[point] = (x == rect.Left) ? Edge.BottomLeft :
+                             (x == rect.Right) ? Edge.BottomRight : Edge.Bottom;
+        }
+
+        // Left edge (excluding corners)
+        for (int y = rect.Top + 1; y < rect.Bottom; y++) {
+            var point = new Point(rect.Left, y);
+            _points[point] = Edge.Left;
+        }
+
+        // Right edge (excluding corners)
+        for (int y = rect.Top + 1; y < rect.Bottom; y++) {
+            var point = new Point(rect.Right, y);
+            _points[point] = Edge.Right;
+        }
+    }
+    public void SetMoving(LocationCollection usingCollection) {
+        if (BaseImage is null || usingCollection is null || !usingCollection.Any())
+            return;
+        Bitmap image = new(BaseImage);
+        using Graphics g = Graphics.FromImage(image);
+        using Pen pen = new(Color.Black);
+        using Brush brush = pen.Brush;
+        pen.Width = 1f;
+        foreach (var location in usingCollection.Values) {
+            g.DrawRectangle(pen, location.Rect);
+            g.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), brush, location.UpperLeft);
+        }
+        ImageMoving = image;
     }
     public Point TransformCoordinates(Point location) {
         PointF scaleF = GetScale();
@@ -162,5 +256,9 @@ public class Floorplan {
         int newWidth = (int)(rect.Width * scaleX);
         int newHeight = (int)(rect.Height * scaleY);
         return new Rectangle(newX, newY, newWidth, newHeight);
+    }
+    public void UpdateLocation(Location location) {
+        RemoveLocation(Locations[location.LocID]);
+        AddLocation(location);
     }
 }

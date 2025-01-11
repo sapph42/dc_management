@@ -23,7 +23,6 @@ public partial class DailyAssignment : Form {
     public DailyAssignment() {
         InitializeComponent();
         _floorplan = new Floorplan() {
-            Locations = LocationCollection.GetLocations(),
             Client = this
         };
         InitializeForm(true, true);
