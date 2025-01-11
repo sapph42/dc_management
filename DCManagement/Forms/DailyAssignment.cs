@@ -208,11 +208,8 @@ public partial class DailyAssignment : Form {
     }
     private List<Skill> GetActiveSkills() =>
         _teams
-            .Select(t => t.Slots)
-            .Select(ts => ts.ToSlot()
-                            .Cast<Skill>()
-            )
-            .SelectMany(l => l)
+            .SelectMany(t => t.Slots)
+            .Select(s => s as Skill)
             .OrderBy(s => s.Priority)
             .DistinctBy(s => s.SkillID)
             .ToList();
