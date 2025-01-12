@@ -15,10 +15,12 @@ namespace DCManagement.Forms {
         private Floorplan _floorplan;
         private Size _maxSize;
         private Label[] _testLabels = new Label[3];
+        private DataManagement _data;
         public Test() {
             InitializeComponent();
+            _data = new(Program.Source);
             _floorplan = new Floorplan() {
-                Locations = LocationCollection.GetLocations(),
+                Locations = _data.GetLocCollection(),
                 Client = this
             };
             _maxSize = new() {

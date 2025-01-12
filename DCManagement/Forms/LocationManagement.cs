@@ -29,7 +29,6 @@ namespace DCManagement.Forms {
         private readonly Floorplan _floorplan;
         private readonly StateString _state = new();
         private readonly Size _maxSize;
-        private Floorplan.Edge _edge = Floorplan.Edge.None;
         #endregion
         public LocationManagement() {
             InitializeComponent();

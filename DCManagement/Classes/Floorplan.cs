@@ -40,7 +40,7 @@ public class Floorplan {
     public Floorplan () {
         _data = new(Program.Source);
         BaseImage = LoadFloorplan();
-        AddLocations(LocationCollection.GetLocations());
+        AddLocations(_data.GetLocCollection());
         if (ImageWithLocations is not null)
             ImageMoving = (Image)ImageWithLocations.Clone();
     }
