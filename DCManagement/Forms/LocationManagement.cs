@@ -1,7 +1,5 @@
 ﻿using DCManagement.Classes;
-using Microsoft.Data.SqlClient;
 using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
 
 namespace DCManagement.Forms {
@@ -21,7 +19,7 @@ namespace DCManagement.Forms {
             Resizing
         }
         #region Fields
-    
+        private DataManagement _data;
         private ActionState _actionState;
         private ActionAllowed _actionAllowed;
         private Point _lastClick;
@@ -35,6 +33,7 @@ namespace DCManagement.Forms {
         #endregion
         public LocationManagement() {
             InitializeComponent();
+            _data = new(Program.Source);
             _floorplan = new Floorplan() {
                 Client = this
             };
@@ -54,37 +53,22 @@ namespace DCManagement.Forms {
         #endregion
         #region Database Interaction
         private void WriteNewLocation() {
-            using SqlConnection conn = new(Program.SqlConnectionString);
             switch (_actionState) {
                 case ActionState.NamingNew:
                 case ActionState.Drawing:
                     if (_pendingLocation is null)
                         return;
-                    using (SqlCommand cmd = new()) {
-                        cmd.Connection = conn;
-                        conn.Open();
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.CommandText = "dbo.InsertLocation";
-                        cmd.Parameters.AddRange(_pendingLocation.GetSqlParameters());
-                        _pendingLocation.LocID = (int)cmd.ExecuteScalar();
-                        _floorplan.AddLocation(_pendingLocation);
-                        _pendingLocation = null;
-                    }
+                    _data.InsertLocation(_pendingLocation);
+                    _floorplan.AddLocation(_pendingLocation);
+                    _pendingLocation = null;
                     break;
                 case ActionState.Moving:
                 case ActionState.Renaming:
                     if (_lastClickLocation is null)
                         return;
-                    using (SqlCommand cmd = new()) {
-                        cmd.Connection = conn;
-                        conn.Open();
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.CommandText = "dbo.UpdateLocation";
-                        cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
-                        _ = cmd.ExecuteNonQuery();
-                        _floorplan.UpdateLocation(_lastClickLocation);
-                        _lastClickLocation = null;
-                    }
+                    _data.UpdateLocation(_lastClickLocation);
+                    _floorplan.UpdateLocation(_lastClickLocation);
+                    _lastClickLocation = null;
                     break;
                 default:
                     break;
@@ -471,14 +455,7 @@ namespace DCManagement.Forms {
         private void DeleteLocationToolStripMenuItem_Click(object sender, EventArgs e) {
             if (_lastClickLocation is null)
                 return;
-            using SqlConnection conn = new(Program.SqlConnectionString);;
-            using SqlCommand cmd = new();
-            cmd.Connection = conn;
-            conn.Open();
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "dbo.DeleteLocation";
-            cmd.Parameters.AddRange(_lastClickLocation.GetSqlParameters(true));
-            var result = cmd.ExecuteScalar().ToString();
+            string result = _data.DeleteLocation(_lastClickLocation);
             if (result == "0")
                 _floorplan.RemoveLocation(_lastClickLocation);
             else if (result == "Cascade")
@@ -531,7 +508,7 @@ namespace DCManagement.Forms {
                     return;
             }
             WriteNewLocation();
-            _floorplan.AddLocations(LocationCollection.GetLocations());
+            _floorplan.AddLocations(_data.GetLocCollection());
             _floorplan.ImageWithLocations = _floorplan.DrawLocations();
             BackgroundImage = _floorplan.ImageWithLocations;
             CancelActionStates();
@@ -562,22 +539,7 @@ namespace DCManagement.Forms {
             };
             if (picker.ShowDialog() != DialogResult.OK || !File.Exists(picker.FileName))
                 return;
-            using SqlConnection conn = new(Program.SqlConnectionString);;
-            using SqlCommand cmd = new();
-            using FileStream file = File.OpenRead(picker.FileName);
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "dbo.UpdateFloorplan";
-            cmd.Connection = conn;
-            conn.Open();
-            SqlParameter dataParam = new() {
-                Direction = ParameterDirection.Input,
-                ParameterName = "@data",
-                Size = -1,
-                SqlDbType = SqlDbType.VarBinary,
-                Value = file
-            };
-            cmd.Parameters.Add(dataParam);
-            cmd.ExecuteNonQuery();
+            _data.WriteFloorplan(picker.FileName);
             LoadFloorplan();
         }
         #endregion

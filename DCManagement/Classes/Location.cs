@@ -1,7 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
-using System.Data;
-
-namespace DCManagement.Classes; 
+﻿namespace DCManagement.Classes; 
 public class Location {
     public int LocID { get; set; }
     public string? Name { get; set; }
@@ -52,25 +49,6 @@ public class Location {
     public bool Equals(Location otherLocation) {
         return (LocID == otherLocation.LocID &&  Name == otherLocation.Name);
     }
-    public static Location FromDatabase(int LocationID) {
-        using SqlConnection conn = new(Program.SqlConnectionString); ;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location WHERE LocID=@LocID";
-        cmd.Parameters.Add("@LocID", SqlDbType.Int);
-        cmd.Parameters["@LocID"].Value = LocationID;
-        cmd.Connection = conn;
-        conn.Open();
-        Location loc = new();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
-        while (reader.Read()) {
-            _ = reader.GetValues(row);
-            loc = new(row);
-        }
-        reader.Close();
-        return loc;
-    }
     public bool IsPointInside(Point point) {
         return point.X >= UpperLeft.X && point.X <= Rect.Right &&
             point.Y >= UpperLeft.Y && point.Y <= Rect.Bottom;
@@ -83,69 +61,5 @@ public class Location {
     }
     public bool IntersectsWith(Rectangle rect) {
         return Rect.IntersectsWith(rect);
-    }
-    public SqlParameter[] GetSqlParameters() {
-        var coll = new SqlParameter[5];
-        coll[0] = new SqlParameter() {
-            ParameterName = "@Name",
-            SqlDbType = SqlDbType.VarChar,
-            Value = Name
-        };
-        coll[1] = new SqlParameter() {
-            ParameterName = "@LocX",
-            SqlDbType = SqlDbType.Int,
-            Value = UpperLeft.X
-        };
-        coll[2] = new SqlParameter() {
-            ParameterName = "@LocY",
-            SqlDbType = SqlDbType.Int,
-            Value = UpperLeft.Y
-        };
-        coll[3] = new SqlParameter() {
-            ParameterName = "@SizeH",
-            SqlDbType = SqlDbType.Int,
-            Value = Size.Height
-        };
-        coll[4] = new SqlParameter() {
-            ParameterName = "@SizeW",
-            SqlDbType = SqlDbType.Int,
-            Value = Size.Width
-        };
-        return coll;
-    }
-    public SqlParameter[] GetSqlParameters(bool forUpdate) {
-        if (!forUpdate) return GetSqlParameters();
-        var coll = new SqlParameter[6];
-        coll[0] = new SqlParameter() {
-            ParameterName = "@ID",
-            SqlDbType = SqlDbType.Int,
-            Value = LocID
-        };
-        coll[1] = new SqlParameter() {
-            ParameterName = "@Name",
-            SqlDbType = SqlDbType.VarChar,
-            Value = Name
-        };
-        coll[2] = new SqlParameter() {
-            ParameterName = "@LocX",
-            SqlDbType = SqlDbType.Int,
-            Value = UpperLeft.X
-        };
-        coll[3] = new SqlParameter() {
-            ParameterName = "@LocY",
-            SqlDbType = SqlDbType.Int,
-            Value = UpperLeft.Y
-        };
-        coll[4] = new SqlParameter() {
-            ParameterName = "@SizeH",
-            SqlDbType = SqlDbType.Int,
-            Value = Size.Height
-        };
-        coll[5] = new SqlParameter() {
-            ParameterName = "@SizeW",
-            SqlDbType = SqlDbType.Int,
-            Value = Size.Width
-        };
-        return coll;
     }
 }

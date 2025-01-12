@@ -1,24 +1,18 @@
 ﻿using DCManagement.Classes;
-using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Drawing;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace DCManagement.Forms;
 public partial class PersonManagement : Form {
     private PersonCollection _people = [];
-    private readonly List<Skill> _skills = [];
+    private List<Skill> _skills = [];
     private Dictionary<int, string> _teams = [];
     private bool _inserting = false;
     private Person? _selectedPerson;
+    private DataManagement _data;
     public PersonManagement() {
         InitializeComponent();
+        _data = new(Program.Source);
     }
     #region Database Interaction
     private void AddNewPerson() {
@@ -37,111 +31,19 @@ public partial class PersonManagement : Form {
             newPerson.Skills.Add(_skills.First(s => s.Equals(skill)));
         }
 
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.InsertPerson";
-        cmd.Parameters.AddRange(newPerson.GetSqlParameters()[1..]);
-        newPerson.PersonID = (int)cmd.ExecuteScalar();
-
-        cmd.CommandText = "dbo.SetPersonSkill";
-        cmd.Parameters.Clear();
-        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
-        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
-        cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
-        cmd.Parameters["@PersonID"].Value = newPerson.PersonID;
-        foreach (Skill st in _skills) {
-            cmd.Parameters["@SkillID"].Value = st.SkillID;
-            cmd.Parameters["@IsSet"].Value = newPerson.Skills.Contains(st);
-            _ = cmd.ExecuteNonQuery();
-        }
-
+        newPerson.PersonID = _data.AddNewPerson(newPerson);
+        _data.UpdatePersonSkills(newPerson, _skills);
         RefreshBox(newPerson.PersonID);
     }
-    private void GetPeople() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetPeople";
-        cmd.Connection = conn;
-        conn.Open();
-        _people = [];
-        using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[7];
-        while (reader.Read()) {
-            _ = reader.GetValues(row);
-            _people.Add(new Person(row));
-        }
-        reader.Close();
-    }
-    private void GetSkills() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetSkills";
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read()) {
-            _skills.Add(new() {
-                SkillID = reader.GetInt32(0),
-                Description = reader.GetString(1),
-                SlotColor = ColorTranslator.FromHtml("#" + reader.GetString(2)),
-                Priority = reader.GetInt32(3)
-            });
-        }
-        reader.Close();
-    }
-    private void LoadPersonInfo(int personID) {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetPersonData";
-        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
-        cmd.Parameters["@PersonID"].Value = personID;
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataAdapter adapter = new(cmd);
-        DataSet ds = new();
-        adapter.Fill(ds);
-        DataTable person = ds.Tables[0];
-        DataTable skills = ds.Tables[1];
-        if (person.Rows.Count == 0 || person.Rows[0].ItemArray is null)
-            return;
-        _selectedPerson = new Person(person.Rows[0].ItemArray!);
-        if (skills.Rows.Count == 0)
-            return;
-        foreach (DataRow row in skills.Rows) {
-            if (row[0] is null || row[1] is null) continue;
-            Skill newSkill = new() {
-                SkillID = (int)row[0],
-                Description = (string)row[1]
-            };
-            if (row[2] is not null)
-                newSkill.SetSlotColor((string)row[2]);
-            if (row[3] is not null)
-                newSkill.Priority = (int)row[3];
-            _selectedPerson.AddSkill(newSkill);
-        }
-    }
     private void LoadTeams() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetTeams";
-        cmd.Connection = conn;        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
         _teams = [];
         _teams.Add(-1, "No Team Selected");
-        while (reader.Read()) {
-            _teams.Add(reader.GetInt32(0), reader.GetString(1));
+        foreach (Team team in _data.GetTeams(true)) {
+            _teams.Add((int)team.TeamID!, team.TeamName);
         }
-        reader.Close();
     }
     private void RefreshBox(int? selectedValue = null) {
-        GetPeople();
+        _people = _data.GetPersonList();
         if (_people.Count == 0)
             return;
         EmployeeListbox.DataSource = new BindingSource(_people.ListboxDatasource, null);
@@ -155,33 +57,14 @@ public partial class PersonManagement : Form {
     private void UpdatePerson() {
         if (_selectedPerson is null)
             return;
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.Connection = conn;        conn.Open();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.UpdatePerson";
-        cmd.Parameters.AddRange(_selectedPerson.GetSqlParameters());
-        _ = cmd.ExecuteScalar();
-
-        cmd.CommandText = "dbo.SetPersonSkill";
-        cmd.Parameters.Clear();
-        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
-        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
-        cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
-        cmd.Parameters["@PersonID"].Value = _selectedPerson.PersonID;
-        foreach (Skill st in _skills) {
-            cmd.Parameters["@SkillID"].Value = st.SkillID;
-            cmd.Parameters["@IsSet"].Value = _selectedPerson.Skills.Contains(st);
-            _ = cmd.ExecuteNonQuery();
-        }
-
+        _data.UpdatePerson(_selectedPerson, _skills);
         RefreshBox(_selectedPerson.PersonID);
     }
     #endregion
     #region Form Event Handlers
     private void PersonManagement_Load(object sender, EventArgs e) {
         LoadTeams();
-        GetSkills();
+        _skills = _data.GetSkills();
         TeamCombobox.DataSource = new BindingSource(_teams, null);
         TeamCombobox.DisplayMember = "Value";
         TeamCombobox.ValueMember = "Key";
@@ -196,7 +79,7 @@ public partial class PersonManagement : Form {
     private void EmployeeListbox_SelectedIndexChanged(object sender, EventArgs e) {
         int personID = ((KeyValuePair<int, string>)EmployeeListbox.Items[EmployeeListbox.SelectedIndex]).Key;
         _inserting = false;
-        LoadPersonInfo(personID);
+        _selectedPerson = _data.GetPerson(personID);
         if (_selectedPerson is null)
             return;
         LastnameTextbox.Text = _selectedPerson.LastName;

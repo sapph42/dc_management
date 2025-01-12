@@ -1,12 +1,11 @@
 ﻿using DCManagement.Classes;
-using Microsoft.Data.SqlClient;
-using System.Data;
 
 namespace DCManagement.Forms;
 public partial class SlotAssignment : Form {
     #region Fields
+    private readonly DataManagement _data;
     private readonly Team _team;
-    private readonly List<Skill> _skills = [];
+    private List<Skill> _skills = [];
 
     private bool _isRowDirty = false;
     private bool _inserting = false;
@@ -17,106 +16,14 @@ public partial class SlotAssignment : Form {
     #endregion
     public SlotAssignment(Team team) {
         InitializeComponent();
+        _data = new(Program.Source);
         _team = team;
         FormLabel.Text = $"Slot Assignment for Team {team.TeamName}";
     }
-    #region Database Interaction
-    private void GetSkills() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetSkills";
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read()) {
-            _skills.Add(new() {
-                SkillID = reader.GetInt32(0),
-                Description = reader.GetString(1),
-                SlotColor = ColorTranslator.FromHtml("#" + reader.GetString(2)),
-                Priority = reader.GetInt32(3)
-            });
-        }
-        reader.Close();
-    }
-    private void GetTeamSlots() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT SlotID, SkillID, MinQty, GoalQty FROM dbo.GetTeamSlots(@TeamID)";
-        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        cmd.Parameters["@TeamID"].Value = _team.TeamID;
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read()) {
-            Skill thisSkill = _skills.First(st => st.SkillID == reader.GetInt32(1));
-            Slots.Add(
-                new() {
-                    SlotID = reader.GetInt32(0),
-                    SkillID = thisSkill.SkillID,
-                    Description = thisSkill.Description,
-                    SlotColor = thisSkill.SlotColor,
-                    Priority = thisSkill.Priority,
-                    MinQty = reader.GetInt32(2),
-                    GoalQty = reader.GetInt32(3)
-                }
-            );
-        }
-        reader.Close();
-    }
-    private int InsertNewSlot(DataGridViewRow row) {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.InsertTeamSlot";
-        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
-        cmd.Parameters.Add("@MinQty", SqlDbType.Int);
-        cmd.Parameters.Add("@GoalQty", SqlDbType.Int);
-        cmd.Parameters["@TeamID"].Value = _team.TeamID;
-        cmd.Parameters["@SkillID"].Value = row.Cells[1].Value;
-        cmd.Parameters["@MinQty"].Value = row.Cells[2].Value;
-        cmd.Parameters["@GoalQty"].Value = row.Cells[3].Value;
-        cmd.Connection = conn;
-        conn.Open();
-        return (int)cmd.ExecuteScalar();
-    }
-    private int UpdateSlot(DataGridViewRow row) {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.UpdateTeamSlot";
-        cmd.Parameters.Add("@SlotID", SqlDbType.Int);
-        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
-        cmd.Parameters.Add("@MinQty", SqlDbType.Int);
-        cmd.Parameters.Add("@GoalQty", SqlDbType.Int);
-        cmd.Parameters["@SlotID"].Value = row.Cells[0].Value;
-        cmd.Parameters["@TeamID"].Value = _team.TeamID;
-        cmd.Parameters["@SkillID"].Value = row.Cells[1].Value;
-        cmd.Parameters["@MinQty"].Value = row.Cells[2].Value;
-        cmd.Parameters["@GoalQty"].Value = row.Cells[3].Value;
-        cmd.Connection = conn;
-        conn.Open();
-        return cmd.ExecuteNonQuery();
-    }
-    private static bool DeleteSlot(int slotID) {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.DeleteTeamSlot";
-        cmd.Parameters.Add("@SlotID", SqlDbType.Int);
-        cmd.Parameters["@SlotID"].Value = slotID;
-        cmd.Connection = conn;
-        conn.Open();
-        return cmd.ExecuteNonQuery() == 1;
-    }
-    #endregion
     #region Form Event Handlers
     private void SlotAssignment_Load(object sender, EventArgs e) {
-        GetSkills();
-        GetTeamSlots();
+        _skills = _data.GetSkills();
+        Slots = _data.GetTeamSlots((int)_team.TeamID!, _skills);
         SlotTypeColumn.DataSource = _skills;
         SlotTypeColumn.DisplayMember = "Description";
         SlotTypeColumn.ValueMember = "SkillID";
@@ -140,7 +47,15 @@ public partial class SlotAssignment : Form {
             } else {
                 row.ErrorText = "";
             }
-            var newSlotID = InsertNewSlot(row);
+
+            var newSlotID = _data.InsertSlot(
+                (int)_team.TeamID!,
+                (int)row.Cells[1].Value,
+                (int)row.Cells[2].Value,
+                (int)row.Cells[3].Value
+            );
+
+
             row.Cells[0].Value = newSlotID;
             Skill thisSkill = _skills.First(st => st.SkillID == (int)row.Cells[1].Value);
             Slots.Add(new() {
@@ -157,7 +72,14 @@ public partial class SlotAssignment : Form {
             return;
         }
         int slotID = (int)row.Cells[0].Value;
-        if (UpdateSlot(row) == 0)
+        int result = _data.UpdateSlot(
+            (int)row.Cells[0].Value,
+            (int)_team.TeamID!,
+            (int)row.Cells[1].Value,
+            (int)row.Cells[2].Value,
+            (int)row.Cells[3].Value
+        );
+        if (result == 0)
             return;
         for (int i = 0; i < Slots.Count; i++) {
             if (Slots[i].SlotID != slotID)
@@ -195,7 +117,7 @@ public partial class SlotAssignment : Form {
     private void SlotsDGV_UserDeletedRow(object sender, DataGridViewRowEventArgs e) {
         var row = e.Row;
         int slotID = (int)row.Cells[0].Value;
-        if (DeleteSlot(slotID)) {
+        if (_data.DeleteSlot(slotID)) {
             Slots.Remove(slotID);
         }
     }

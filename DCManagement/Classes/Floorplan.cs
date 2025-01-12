@@ -1,7 +1,4 @@
-﻿using System.Data;
-using Microsoft.Data.SqlClient;
-
-namespace DCManagement.Classes; 
+﻿namespace DCManagement.Classes; 
 public class Floorplan {
     public enum Edge {
         None,
@@ -15,6 +12,7 @@ public class Floorplan {
         BottomLeft
     }
     private Dictionary<Point, Edge> _points = [];
+    private DataManagement _data;
     public Image BaseImage { get; set; }
     public Image? ImageWithLocations { get; set; }
     public Image? ImageMoving { get; set; }
@@ -40,6 +38,7 @@ public class Floorplan {
         }
     }
     public Floorplan () {
+        _data = new(Program.Source);
         BaseImage = LoadFloorplan();
         AddLocations(LocationCollection.GetLocations());
         if (ImageWithLocations is not null)
@@ -139,23 +138,7 @@ public class Floorplan {
     public Location? FindByPoint(Point point) => Locations.FindByPoint(point);
     public Edge IsPointOnPerimeter(Point point) => _points.TryGetValue(point, out var edge) ? edge : Edge.None;
     public Image LoadFloorplan() {
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT TOP (1) Image FROM Floorplan";
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        if (reader.Read())
-            if (!reader.IsDBNull(0))
-                using (MemoryStream stream = new()) {
-                    using Stream data = reader.GetStream(0);
-                    data.CopyTo(stream);
-                    BaseImage = Image.FromStream(stream);
-                }
-        if (BaseImage is null)
-            throw new InvalidDataException("Could not load floorplan from database");
-        reader.Close();
+        BaseImage = _data.GetFloorplan();
         ImageWithLocations = DrawLocations();
         return BaseImage;
     }

@@ -1,19 +1,9 @@
 ﻿using DCManagement.Classes;
-using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace DCManagement.Forms;
 public partial class TeamManagement : Form {
     #region Fields
-
+    private DataManagement _data;
     private Dictionary<int, string> _teams = [];
     private LocationCollection _locations = [];
     private PersonCollection _people = [];
@@ -23,112 +13,39 @@ public partial class TeamManagement : Form {
     #endregion
     public TeamManagement() {
         InitializeComponent();
+        _data = new(Program.Source);
     }
     #region Internal Helper Functions
     #region Database Interaction
     private void LoadTeams() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = @"dbo.GetTeams";
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
         _teams = [];
-        while (reader.Read()) {
-            _teams.Add(reader.GetInt32(0), reader.GetString(1));
+        foreach (Team team in _data.GetTeams(true)) {
+            _teams.Add((int)team.TeamID!, team.TeamName);
         }
-        reader.Close();
     }
     private void GetLocations() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location ORDER BY Name";
-        cmd.Connection = conn;
-        conn.Open();
         _locations = [];
         _locations.Add(new() {
             LocID = -1,
             Name = "No Location Assigned"
         });
-        using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
-        while (reader.Read()) {
-            _ = reader.GetValues(row);
-            _locations.Add(new Location(row));
-        }
-        reader.Close();
-    }
-    private void GetPeople() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetPeople";
-        cmd.Connection = conn;
-        conn.Open();
-        _people = [];
-        _people.Add(new() {
-            PersonID = -1,
-            NameOverride = "No Team Lead"
-        });
-        using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[7];
-        while (reader.Read()) {
-            _ = reader.GetValues(row);
-            _people.Add(new Person(row));
-        }
-        reader.Close();
-    }
-    private void LoadTeamInfo(int teamID) {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active FROM dbo.GetTeamInfo(@TeamID)";
-        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        cmd.Parameters["@TeamID"].Value = teamID;
-        cmd.Connection = conn;
-        conn.Open();
-        using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
-        while (reader.Read()) {
-            _ = reader.GetValues(row);
-            _selectedTeam = new Team(row);
-        }
-        reader.Close();
+        _locations.AddRangeUnsafe(_data.GetLocCollection());
     }
     private void AddNewTeam() {
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.InsertTeam";
-        cmd.Parameters.Add("@Name", SqlDbType.VarChar);
-        cmd.Parameters.Add("@Lead", SqlDbType.Int);
-        cmd.Parameters.Add("@LocID", SqlDbType.Int);
-        cmd.Parameters.Add("@Fill", SqlDbType.Bit);
-        cmd.Parameters.Add("@Active", SqlDbType.Bit);
-        cmd.Parameters["@Name"].Value = TeamNameTextbox.Text;
-        cmd.Parameters["@Lead"].Value = LeadCombobox.SelectedValue;
-        cmd.Parameters["@LocID"].Value = LocationCombobox.SelectedValue;
-        cmd.Parameters["@Fill"].Value = FillCheckbox.Checked ? 1 : 0;
-        cmd.Parameters["@Active"].Value = ActiveCheckbox.Checked ? 1 : 0;
-        int newTeam = (int)cmd.ExecuteScalar();
+        int newTeam = _data.AddNewTeam(
+            TeamNameTextbox.Text,
+            (int)LeadCombobox.SelectedValue!,
+            (int)LocationCombobox.SelectedValue!,
+            FillCheckbox.Checked,
+            ActiveCheckbox.Checked
+        );
         _insert = false;
         RefreshBox(newTeam);
     }
     private void UpdateTeam() {
         if (_selectedTeam is null)
             return;
-        using SqlConnection conn = new(Program.SqlConnectionString);;
-        using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.UpdateTeam";
-        cmd.Parameters.AddRange(_selectedTeam.GetSqlParameters());
-        _ = cmd.ExecuteScalar();
+        _data.UpdateTeam(_selectedTeam);
         if (_boxDirty)
             RefreshBox(_selectedTeam.TeamID);
     }
@@ -150,7 +67,7 @@ public partial class TeamManagement : Form {
     #region Form Event Handlers
     private void TeamManagement_Load(object sender, EventArgs e) {
         GetLocations();
-        GetPeople();
+        _people = _data.GetPersonList();
         LocationCombobox.DataSource = new BindingSource(_locations.ListboxDatasource, null);
         LocationCombobox.DisplayMember = "Value";
         LocationCombobox.ValueMember = "Key";
@@ -200,7 +117,7 @@ public partial class TeamManagement : Form {
     }
     private void TeamListbox_SelectedIndexChanged(object sender, EventArgs e) {
         int teamID = ((KeyValuePair<int, string>)TeamListbox.Items[TeamListbox.SelectedIndex]).Key;
-        LoadTeamInfo(teamID);
+        _selectedTeam = _data.GetTeam(teamID);
         if (_selectedTeam is null)
             return;
         TeamNameTextbox.Text = _selectedTeam.TeamName;

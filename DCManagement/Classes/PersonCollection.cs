@@ -1,5 +1,5 @@
 ﻿namespace DCManagement.Classes;
-internal class PersonCollection : Dictionary<int, Person> {
+public class PersonCollection : Dictionary<int, Person> {
     private Dictionary<int, string> _idsAndNames = [];
     public Dictionary<int, string> ListboxDatasource {
         get => _idsAndNames; 

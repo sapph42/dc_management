@@ -1,12 +1,11 @@
 ﻿using DCManagement.Classes;
-using Microsoft.Data.SqlClient;
-using System.Data;
 using System.Diagnostics;
 
 namespace DCManagement.Forms;
 public partial class DailyAssignment : Form {
+    private DataManagement _data;
     private List<Skill> _skills = [];
-    private readonly PersonCollection _people = [];
+    private PersonCollection _people = [];
     private List<Team> _teams = [];
     private Team _float = new() {
         TeamID = 9999
@@ -14,14 +13,15 @@ public partial class DailyAssignment : Form {
     private Team _unavailable = new() {
         TeamID = -1
     };
-    private readonly AvailablePeople _availablePeople = new();
-    private readonly List<Person> _unavailablePeople = [];
+    private AvailablePeople _availablePeople = new();
+    private List<Person> _unavailablePeople = [];
     private readonly List<Team> _defunctTeams = [];
     private readonly Floorplan _floorplan;
     private Size _maxSize;
     private readonly List<Label> _labels = [];
     public DailyAssignment() {
         InitializeComponent();
+        _data = new(Program.Source);
         _floorplan = new Floorplan() {
             Client = this
         };
@@ -46,15 +46,6 @@ public partial class DailyAssignment : Form {
         }
     }
     #region Data Methods
-    private bool CheckForFinalizedAssignments() {
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        conn.Open();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = @"dbo.CheckForFinalizedAssignments";
-        cmd.Connection = conn;
-        return (bool)cmd.ExecuteScalar();
-    }
     private void FillGoalSlots(int SkillID) {
         //First try and fill all teams to goal staffing from float
         List<Team> teamsToFill = [.. _teams.Where(
@@ -183,29 +174,6 @@ public partial class DailyAssignment : Form {
         //ThereAreAvailableMoves
         //TODO Generate some kind of alert that not all teams could be filled
     }
-    private List<Person> GetDefaultSlotAssignments(int TeamID, int SkillID) {
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = "dbo.GetDefaultSlotAssignments";
-        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        cmd.Parameters["@TeamID"].Value = TeamID;
-        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
-        cmd.Parameters["@SkillID"].Value = SkillID;
-        cmd.Connection = conn;
-        conn.Open();
-        List<Person> members = [];
-        using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
-        while (reader.Read()) {
-            int personID = reader.GetInt32(0);
-            if (!_people.ContainsKey(personID))
-                _people.Add(Person.FromDatabase(personID));
-            members.Add(_people[personID]);
-        }
-        reader.Close();
-        return AvailablePeople.CleanUnavailable(members);
-    }
     private List<Skill> GetActiveSkills() =>
         _teams
             .SelectMany(t => t.Slots)
@@ -213,30 +181,6 @@ public partial class DailyAssignment : Form {
             .OrderBy(s => s.Priority)
             .DistinctBy(s => s.SkillID)
             .ToList();
-    private void GetPeople() {
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        conn.Open();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = @"dbo.GetPeople";
-        cmd.Connection = conn;
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read()) {
-            int personID = reader.GetInt32(0);
-            Person person = Person.FromDatabase(personID);
-            if (!person.Available) {
-                person.Team = _unavailable;
-                _unavailablePeople.Add(person);
-            } else {
-                person.Team = _teams.FirstOrDefault(t => t.TeamID == person.TeamID);
-                if (person.Team is null && person.Available) {
-                    person.Team = _float;
-                    _availablePeople.People.Add(person);
-                }
-                _people.Add(person);
-            }
-        }
-    }
     private void InitialAssignments() {
         MoveUnassignedToFloat();
         List<Skill> activeSkills = GetActiveSkills();
@@ -249,52 +193,7 @@ public partial class DailyAssignment : Form {
         InitializeForm(false, false, true);
     }
     private void LoadFinalizedAssignments() {
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        conn.Open();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandText = @"dbo.DailyRead";
-        cmd.Connection = conn;
-        using SqlDataAdapter adapter = new(cmd);
-        DataSet ds = new();
-        adapter.Fill(ds);
-        DataTable teamData = ds.Tables[0];
-        DataTable personData = ds.Tables[1];
-        teamData.Columns[0].ColumnName = "TeamID";
-        teamData.Columns[1].ColumnName = "LocID";
-        personData.Columns[0].ColumnName = "PersonID";
-        personData.Columns[1].ColumnName = "TeamID";
-        personData.Columns[2].ColumnName = "SlotID";
-        var teamsInUse = teamData.AsEnumerable().Select(row => row.Field<int>("TeamID")).Cast<int>().ToList();
-        _teams
-            .Where(t => !teamsInUse
-                            .Contains((int)t.TeamID!))
-            .ToList()
-            .ForEach(t => {
-                _teams.Remove(t);
-                _defunctTeams.Add(t);
-        });
-        foreach (DataRow row in teamData.Rows) {
-            Team thisTeam = _teams.Where(t => t.TeamID == (int)row["TeamID"]).First();
-            Location assignedLocation = _floorplan.Locations[(int)row["LocID"]];
-            thisTeam.CurrentAssignment = assignedLocation;
-        }
-
-        var assignedPeople = personData.AsEnumerable().Select(row => row.Field<int>("PersonID")).Cast<int>().ToList();
-        _people
-            .Where(p => !assignedPeople.Contains(p.Key))
-            .ToList()
-            .ForEach(p => {
-                _availablePeople.People.Add(p.Value);
-        });
-        foreach (DataRow row in personData.Rows) {
-            Person thisPerson = _people[(int)row["PersonID"]];
-            Team assignedTeam = _teams.Where(t => t.TeamID == (int)row["TeamID"]).First();
-            Slot assignedSlot = assignedTeam.Slots.Where(s => s.SlotID == (int)row["SlotID"]).First();
-            thisPerson.Team = assignedTeam;
-            assignedSlot.AssignToSlot(thisPerson);
-            thisPerson.AssignmentLocked = true;
-        }
+        _data.LoadFinalizedAssignments(_teams, _defunctTeams, _floorplan.Locations, _people, _availablePeople);
         InitializeForm(false, false, true);
     }
     private void PrepTeams() {
@@ -306,21 +205,21 @@ public partial class DailyAssignment : Form {
                 team.TeamLead = _people[team.TeamLeadID]; ;
             }
             if (team.PrimaryLocation is null && team.LocationID != -1) {
-                team.PrimaryLocation = Classes.Location.FromDatabase(team.LocationID);
+                team.PrimaryLocation = _data.GetLocation(team.LocationID);
                 team.CurrentAssignment = team.PrimaryLocation;
             }
             Debug.WriteLine($"{_teams[i].TeamID}:{_teams[i].TeamName} :: {_teams[i].PrimaryLocation?.Name ?? ""}");
-            team.Slots = TeamSlots.FromDatabase((int)team.TeamID!, _skills);
+            team.Slots = _data.GetTeamSlots((int)team.TeamID!, _skills);
             for (int j = 0; j < team.Slots.Count; j++) {
                 Slot slot = team.Slots[j];
                 int skillID = slot.SkillID;
-                slot.SetAssignments(GetDefaultSlotAssignments((int)team.TeamID, skillID));
+                slot.SetAssignments(_data.GetDefaultSlotAssignments((int)team.TeamID, skillID, _people));
                 Debug.WriteLine($"{_teams[i].TeamID}:{_teams[i].Slots[j].SlotID} :: {_teams[i].Slots[j].Description}");
             }
         }
         try {
-            _float.Slots = TeamSlots.FromDatabase((int)_float.TeamID!, _skills);
-            _unavailable.Slots = TeamSlots.FromDatabase((int)_unavailable.TeamID!, _skills);
+            _float.Slots = _data.GetTeamSlots((int)_float.TeamID!, _skills);
+            _unavailable.Slots = _data.GetTeamSlots((int)_unavailable.TeamID!, _skills);
         } catch {
 
         }
@@ -414,16 +313,8 @@ public partial class DailyAssignment : Form {
         }
     }
     private void ToggleUnavailable(Person person, bool toFloat = true) {
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand cmd = new();
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
-        cmd.Parameters["@PersonID"].Value = person.PersonID;
-        cmd.Connection = conn;
-        conn.Open();
         if (person.Available) {
-            cmd.CommandText = "dbo.UnavailableToday";
-            _ = cmd.ExecuteNonQuery();
+            _data.SetPersonUnavailable(person);
             person.Available = false;
             _unavailablePeople.Add(person);
             Team? targetTeam = person.Team;
@@ -444,8 +335,7 @@ public partial class DailyAssignment : Form {
             DrawUnavailable();
             person.AssignedSlot = null;
         } else {
-            cmd.CommandText = "dbo.AvailableToday";
-            _ = cmd.ExecuteNonQuery();
+            _data.SetPersonAvailable(person);
             _unavailablePeople.Remove(person);
             Controls.Remove(person.Label);
             _unavailable.RemovePerson(person);
@@ -609,23 +499,24 @@ public partial class DailyAssignment : Form {
         e.Effect = DragDropEffects.Move;
     }
     private void DailyAssignment_Load(object sender, EventArgs e) {
-        _skills = Skill.FromDatabase();
-        _teams = Team.FromDatabase();
+        _skills = _data.GetSkills();
+        _teams = _data.GetTeams();
         if (_teams.FirstOrDefault(t => t.TeamName == "Float") is not null) {
             _float = _teams.First(t => t.TeamName == "Float");
             _teams.Remove(_float);
-            _float.PrimaryLocation = Classes.Location.FromDatabase(_float.LocationID);
+            _float.PrimaryLocation = _data.GetLocation(_float.LocationID);
             _float.CurrentAssignment = _float.PrimaryLocation;
         }
         if (_teams.FirstOrDefault(t => t.TeamName == "Unavailable") is not null) {
             _unavailable = _teams.First(t => t.TeamName == "Unavailable");
             _teams.Remove(_unavailable);
-            _unavailable.PrimaryLocation = Classes.Location.FromDatabase(_unavailable.LocationID);
+            _unavailable.PrimaryLocation = _data.GetLocation(_unavailable.LocationID);
             _unavailable.CurrentAssignment = _unavailable.PrimaryLocation;
         }
         PrepTeams();
-        GetPeople();
-        if (CheckForFinalizedAssignments()) 
+
+        (_unavailablePeople, _availablePeople, _people) = _data.FillAssignmentCollections(_teams, _unavailable, _float);
+        if (_data.CheckForFinalizedAssignments()) 
             LoadFinalizedAssignments();
         else
             InitialAssignments();
@@ -640,47 +531,7 @@ public partial class DailyAssignment : Form {
     #region Control Event Handlers
     private void FinalizeAssignmentsToolStripMenuItem_Click(object sender, EventArgs e) {
         Cursor.Current = Cursors.WaitCursor;
-        using SqlConnection conn = new(Program.SqlConnectionString);
-        using SqlCommand teamCmd = new();
-        using SqlCommand personCmd = new();
-        conn.Open();
-        teamCmd.CommandType = CommandType.StoredProcedure;
-        teamCmd.CommandText = @"dbo.DailyTeamWrite";
-        teamCmd.Connection = conn;
-        personCmd.CommandType = CommandType.StoredProcedure;
-        personCmd.CommandText = @"dbo.DailyPersonWrite";
-        personCmd.Connection = conn;
-
-        teamCmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        teamCmd.Parameters.Add("@LocID", SqlDbType.Int);
-        teamCmd.Parameters.Add("@Active", SqlDbType.Bit);
-        personCmd.Parameters.Add("@PersonID", SqlDbType.Int);
-        personCmd.Parameters.Add("@TeamID", SqlDbType.Int);
-        personCmd.Parameters.Add("@SlotID", SqlDbType.Int);
-        foreach (var team in _teams) {
-            teamCmd.Parameters["@TeamID"].Value = team.TeamID;
-            if (team.CurrentAssignment is null) {
-                teamCmd.Parameters["@LocID"].Value = DBNull.Value;
-                teamCmd.Parameters["@Active"].Value = false;
-            }
-            else {
-                teamCmd.Parameters["@LocID"].Value = team.CurrentAssignment.LocID;
-                teamCmd.Parameters["@Active"].Value = true;
-            }
-            _ = teamCmd.ExecuteNonQuery();
-
-            foreach (var slot in team.Slots) {
-                if (slot is null || slot.AssignedToSlot == 0)
-                    continue;
-                foreach (var person in slot.Assigned) {
-                    personCmd.Parameters["@PersonID"].Value = person.PersonID;
-                    personCmd.Parameters["@TeamID"].Value = person.TeamID;
-                    personCmd.Parameters["@SlotID"].Value = slot.SlotID;
-                    _ = personCmd.ExecuteNonQuery();
-                }
-            }
-        }
-        conn.Close();
+        _data.WriteFinalizedAssignments(_teams);
         Cursor.Current = Cursors.Default;
     }
     private void RefreshToolStripMenuItem_Click(object sender, EventArgs e) {
