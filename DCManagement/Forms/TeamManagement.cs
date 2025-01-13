@@ -34,8 +34,8 @@ public partial class TeamManagement : Form {
     private void AddNewTeam() {
         int newTeam = _data.AddNewTeam(
             TeamNameTextbox.Text,
-            (int)LeadCombobox.SelectedValue!,
-            (int)LocationCombobox.SelectedValue!,
+            (int)(LeadCombobox.SelectedValue ?? -1),
+            (int)(LocationCombobox.SelectedValue ?? -1),
             FillCheckbox.Checked,
             ActiveCheckbox.Checked
         );

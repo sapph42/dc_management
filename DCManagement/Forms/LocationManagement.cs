@@ -29,6 +29,7 @@ public partial class LocationManagement : Form {
     private readonly Floorplan _floorplan;
     private readonly StateString _state = new();
     private readonly Size _maxSize;
+    private Floorplan.Edge _edge = Floorplan.Edge.None;
     #endregion
     public LocationManagement() {
         InitializeComponent();
@@ -63,6 +64,7 @@ public partial class LocationManagement : Form {
                 break;
             case ActionState.Moving:
             case ActionState.Renaming:
+            case ActionState.Resizing:
                 if (_lastClickLocation is null)
                     return;
                 _data.UpdateLocation(_lastClickLocation);
@@ -137,7 +139,8 @@ public partial class LocationManagement : Form {
                     return;
                 _actionState = ActionState.Moving;
                 _state.Text = "Select location to move";
-                _floorplan.ImageMoving = (Image)_floorplan.ImageWithLocations!.Clone();
+                _floorplan.ImageMoving = _floorplan.DrawLocations(_floorplan.Locations.Except([_lastClickLocation]));
+                BackgroundImage = _floorplan.ImageMoving;
                 break;
             case ActionAllowed.Drawing:
                 if (_pendingLocation is not null) {
@@ -160,8 +163,12 @@ public partial class LocationManagement : Form {
                     return;
                 }
                 _lastClickLocation = _floorplan.FindByPoint(_lastClick);
+                if (_lastClickLocation is null)
+                    return;
                 _firstPoint = _lastClick;
                 _actionState = ActionState.Resizing;
+                _floorplan.ImageMoving = _floorplan.DrawLocations(_floorplan.Locations.Except([_lastClickLocation]));
+                BackgroundImage = _floorplan.ImageMoving;
                 Refresh();
                 break;
             default:
@@ -181,6 +188,7 @@ public partial class LocationManagement : Form {
         Point first;
         Point second;
         Rectangle rect = new();
+        Cursor.Current = Cursors.Default;
         switch (_actionState) {
             case ActionState.Moving:
                 if (_actionAllowed != ActionAllowed.Moving || _lastClickLocation is null) {
@@ -248,20 +256,54 @@ public partial class LocationManagement : Form {
                 NameEditTextbox.Focus();
                 break;
             case ActionState.Resizing:
-                if (_actionAllowed != ActionAllowed.Drawing || _firstPoint is null || _lastClickLocation is null) {
+                if (_actionAllowed != ActionAllowed.Resizing || _firstPoint is null || _lastClickLocation is null) {
                     CancelActionStates();
                     return;
                 }
-                first = (Point)_firstPoint;
-                second = click;
+                rect = _lastClickLocation.Rect;
+                second = _floorplan.TransformCoordinatesInv(e.Location);
+                Point upperLeft = rect.Location;
+                Point lowerRight = new(rect.X + rect.Width, rect.Y + rect.Height);
+                switch (_edge) {
+                    case Floorplan.Edge.None:
+                        break;
+                    case Floorplan.Edge.Left:
+                        upperLeft.X = second.X;
+                        break;
+                    case Floorplan.Edge.Top:
+                        upperLeft.Y = second.Y;
+                        break;
+                    case Floorplan.Edge.Right:
+                        lowerRight.X = second.X;
+                        break;
+                    case Floorplan.Edge.Bottom:
+                        lowerRight.Y = second.Y;
+                        break;
+                    case Floorplan.Edge.TopRight:
+                        upperLeft.Y = second.Y;
+                        lowerRight.X = second.X;
+                        break;
+                    case Floorplan.Edge.BottomRight:
+                        lowerRight = second;
+                        break;
+                    case Floorplan.Edge.TopLeft:
+                        upperLeft = second;
+                        break;
+                    case Floorplan.Edge.BottomLeft:
+                        upperLeft.X = second.X;
+                        lowerRight.Y = second.Y;
+                        break;
+                    default:
+                        break;
+                }
                 rect = new() {
                     Location = new() {
-                        X = Math.Min(first.X, second.X),
-                        Y = Math.Min(first.Y, second.Y)
+                        X = Math.Min(upperLeft.X, lowerRight.X),
+                        Y = Math.Min(upperLeft.Y, lowerRight.Y)
                     },
                     Size = new() {
-                        Width = Math.Abs(first.X - second.X),
-                        Height = Math.Abs(first.Y - second.Y)
+                        Width = Math.Abs(upperLeft.X - lowerRight.X),
+                        Height = Math.Abs(upperLeft.Y - lowerRight.Y)
                     }
                 };
                 if (
@@ -305,43 +347,45 @@ public partial class LocationManagement : Form {
         if (BackgroundImage is null)
             return;
         Point adjustedCoord = _floorplan.TransformCoordinatesInv(e.Location);
-        var onEdge = _floorplan.IsPointOnPerimeter(adjustedCoord);
-        switch (onEdge) {
-            case Floorplan.Edge.None:
-                if (_actionState == ActionState.None && _actionAllowed == ActionAllowed.None)
-                    Cursor.Current = Cursors.Default;
-                if (_actionAllowed == ActionAllowed.Resizing && _actionState == ActionState.None) {
-                    _actionAllowed = ActionAllowed.None;
-                    Cursor.Current = Cursors.Default;
-                    _pendingLocation = null;
-                }
-                break;
-            case Floorplan.Edge.Left:
-            case Floorplan.Edge.Right:
-                Cursor.Current = Cursors.SizeWE;
-                _actionAllowed = ActionAllowed.Resizing;
-                _pendingLocation = _floorplan.FindByPoint(adjustedCoord);
-                break;
-            case Floorplan.Edge.Top:
-            case Floorplan.Edge.Bottom:
-                Cursor.Current = Cursors.SizeNS;
-                _actionAllowed = ActionAllowed.Resizing;
-                _pendingLocation = _floorplan.FindByPoint(adjustedCoord);
-                break;
-            case Floorplan.Edge.BottomLeft:
-            case Floorplan.Edge.TopRight:
-                Cursor.Current = Cursors.SizeNESW;
-                _actionAllowed = ActionAllowed.Resizing;
-                _pendingLocation = _floorplan.FindByPoint(adjustedCoord);
-                break;
-            case Floorplan.Edge.BottomRight:
-            case Floorplan.Edge.TopLeft:
-                Cursor.Current = Cursors.SizeNWSE;
-                _actionAllowed = ActionAllowed.Resizing;
-                _pendingLocation = _floorplan.FindByPoint(adjustedCoord);
-                break;
-            default:
-                break;
+        if (_actionState == ActionState.None && (_actionAllowed == ActionAllowed.Resizing || _actionAllowed == ActionAllowed.None)) { 
+            _edge = _floorplan.IsPointOnPerimeter(adjustedCoord);
+            switch (_edge) {
+                case Floorplan.Edge.None:
+                    if (_actionState == ActionState.None && _actionAllowed == ActionAllowed.None)
+                        Cursor.Current = Cursors.Default;
+                    if (_actionAllowed == ActionAllowed.Resizing && _actionState == ActionState.None) {
+                        _actionAllowed = ActionAllowed.None;
+                        Cursor.Current = Cursors.Default;
+                        _pendingLocation = null;
+                    }
+                    break;
+                case Floorplan.Edge.Left:
+                case Floorplan.Edge.Right:
+                    Cursor.Current = Cursors.SizeWE;
+                    _actionAllowed = ActionAllowed.Resizing;
+                    _pendingLocation = _floorplan.FindByPoint(adjustedCoord);
+                    break;
+                case Floorplan.Edge.Top:
+                case Floorplan.Edge.Bottom:
+                    Cursor.Current = Cursors.SizeNS;
+                    _actionAllowed = ActionAllowed.Resizing;
+                    _pendingLocation = _floorplan.FindByPoint(adjustedCoord);
+                    break;
+                case Floorplan.Edge.BottomLeft:
+                case Floorplan.Edge.TopRight:
+                    Cursor.Current = Cursors.SizeNESW;
+                    _actionAllowed = ActionAllowed.Resizing;
+                    _pendingLocation = _floorplan.FindByPoint(adjustedCoord);
+                    break;
+                case Floorplan.Edge.BottomRight:
+                case Floorplan.Edge.TopLeft:
+                    Cursor.Current = Cursors.SizeNWSE;
+                    _actionAllowed = ActionAllowed.Resizing;
+                    _pendingLocation = _floorplan.FindByPoint(adjustedCoord);
+                    break;
+                default:
+                    break;
+            }
         }
         Rectangle rect;
         Point first;
@@ -385,22 +429,57 @@ public partial class LocationManagement : Form {
                 BackgroundImage = _floorplan.DrawNewRectangle(rect);
                 break;
             case ActionState.Resizing:
-                if (_firstPoint is null || _lastClickLocation is not null) {
+                if (_firstPoint is null || _lastClickLocation is null) {
                     CancelActionStates();
                     return;
                 }
+                rect = _lastClickLocation.Rect;
                 second = _floorplan.TransformCoordinatesInv(e.Location);
-                first = (Point) _firstPoint;
+                Point upperLeft = rect.Location;
+                Point lowerRight = new(rect.X + rect.Width, rect.Y + rect.Height);
+                switch (_edge) {
+                    case Floorplan.Edge.None:
+                        break;
+                    case Floorplan.Edge.Left:
+                        upperLeft.X = second.X;
+                        break;
+                    case Floorplan.Edge.Top:
+                        upperLeft.Y = second.Y;
+                        break;
+                    case Floorplan.Edge.Right:
+                        lowerRight.X = second.X;
+                        break;
+                    case Floorplan.Edge.Bottom:
+                        lowerRight.Y = second.Y;
+                        break;
+                    case Floorplan.Edge.TopRight:
+                        upperLeft.Y = second.Y;
+                        lowerRight.X = second.X;
+                        break;
+                    case Floorplan.Edge.BottomRight:
+                        lowerRight = second;
+                        break;
+                    case Floorplan.Edge.TopLeft:
+                        upperLeft = second;
+                        break;
+                    case Floorplan.Edge.BottomLeft:
+                        upperLeft.X = second.X;
+                        lowerRight.Y = second.Y;
+                        break;
+                    default:
+                        break;
+                }
                 rect = new() {
                     Location = new() {
-                        X = Math.Min(first.X, second.X),
-                        Y = Math.Min(first.Y, second.Y)
+                        X = Math.Min(upperLeft.X, lowerRight.X),
+                        Y = Math.Min(upperLeft.Y, lowerRight.Y)
                     },
                     Size = new() {
-                        Width = Math.Abs(first.X - second.X),
-                        Height = Math.Abs(first.Y - second.Y)
+                        Width = Math.Abs(upperLeft.X - lowerRight.X),
+                        Height = Math.Abs(upperLeft.Y - lowerRight.Y)
                     }
                 };
+
                 BackgroundImage = _floorplan.DrawMovingRectangle(rect);
                 break;
             default:

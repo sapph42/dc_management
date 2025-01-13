@@ -1,10 +1,17 @@
 ﻿namespace DCManagement.Classes; 
 public class LocationCollection : Dictionary<int, Location> {
     private readonly Dictionary<int, string> _idsAndNames = [];
-    public Dictionary<int, string> ListboxDatasource {
-        get => _idsAndNames;
+    public SortedDictionary<int, string> ListboxDatasource {
+        get => new SortedDictionary<int, string>(_idsAndNames.OrderBy(i => i.Value).ToDictionary());
     }
     public LocationCollection() { }
+    public static LocationCollection FromEnumerable(IEnumerable<KeyValuePair<int, Location>> items) {
+        var collection = new LocationCollection();
+        foreach (var item in items) {
+            collection.Add(item.Key, item.Value);
+        }
+        return collection;
+    }
     internal void AddRangeUnsafe(Dictionary<int, Location> internalDict) {
         foreach (var kvp in internalDict){
             Add(kvp.Key, kvp.Value.Clone());
@@ -30,6 +37,9 @@ public class LocationCollection : Dictionary<int, Location> {
             if (kvp.Value.Equals(location)) return true;
         }
         return false;
+    }
+    public LocationCollection Except(IEnumerable<Location> second) {
+        return FromEnumerable(this.Where(lc => !second.Select(l => l.LocID).Contains(lc.Key)));
     }
     public Location? FindByPoint(Point point) {
         foreach (Location location in Values) {

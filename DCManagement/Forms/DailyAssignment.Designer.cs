@@ -27,12 +27,13 @@
             EditMenu = new MenuStrip();
             EditTSMI = new ToolStripMenuItem();
             RefreshToolStripMenuItem = new ToolStripMenuItem();
+            FinalizeAssignmentsToolStripMenuItem = new ToolStripMenuItem();
             MouseCoordTSMI = new ToolStripMenuItem();
             AlertMessagesTSMI = new ToolStripMenuItem();
             CancelPendingActionToolStripMenuItem = new ToolStripMenuItem();
             LabelContextMenu = new ContextMenuStrip(components);
             ToggleAvailabilityToolStripMenuItem = new ToolStripMenuItem();
-            FinalizeAssignmentsToolStripMenuItem = new ToolStripMenuItem();
+            ReassignToTeamToolStripMenuItem = new ToolStripMenuItem();
             EditMenu.SuspendLayout();
             LabelContextMenu.SuspendLayout();
             SuspendLayout();
@@ -60,6 +61,13 @@
             RefreshToolStripMenuItem.Text = "Refresh";
             RefreshToolStripMenuItem.Click += RefreshToolStripMenuItem_Click;
             // 
+            // FinalizeAssignmentsToolStripMenuItem
+            // 
+            FinalizeAssignmentsToolStripMenuItem.Name = "FinalizeAssignmentsToolStripMenuItem";
+            FinalizeAssignmentsToolStripMenuItem.Size = new Size(184, 22);
+            FinalizeAssignmentsToolStripMenuItem.Text = "Finalize Assignments";
+            FinalizeAssignmentsToolStripMenuItem.Click += FinalizeAssignmentsToolStripMenuItem_Click;
+            // 
             // MouseCoordTSMI
             // 
             MouseCoordTSMI.Name = "MouseCoordTSMI";
@@ -81,23 +89,22 @@
             // 
             // LabelContextMenu
             // 
-            LabelContextMenu.Items.AddRange(new ToolStripItem[] { ToggleAvailabilityToolStripMenuItem });
+            LabelContextMenu.Items.AddRange(new ToolStripItem[] { ToggleAvailabilityToolStripMenuItem, ReassignToTeamToolStripMenuItem });
             LabelContextMenu.Name = "LabelContextMenu";
-            LabelContextMenu.Size = new Size(172, 26);
+            LabelContextMenu.Size = new Size(181, 70);
             // 
             // ToggleAvailabilityToolStripMenuItem
             // 
             ToggleAvailabilityToolStripMenuItem.Name = "ToggleAvailabilityToolStripMenuItem";
-            ToggleAvailabilityToolStripMenuItem.Size = new Size(171, 22);
+            ToggleAvailabilityToolStripMenuItem.Size = new Size(180, 22);
             ToggleAvailabilityToolStripMenuItem.Text = "Toggle Availability";
             ToggleAvailabilityToolStripMenuItem.Click += ToggleAvailabilityToolStripMenuItem_Click;
             // 
-            // FinalizeAssignmentsToolStripMenuItem
+            // ReassignToTeamToolStripMenuItem
             // 
-            FinalizeAssignmentsToolStripMenuItem.Name = "FinalizeAssignmentsToolStripMenuItem";
-            FinalizeAssignmentsToolStripMenuItem.Size = new Size(184, 22);
-            FinalizeAssignmentsToolStripMenuItem.Text = "Finalize Assignments";
-            FinalizeAssignmentsToolStripMenuItem.Click += FinalizeAssignmentsToolStripMenuItem_Click;
+            ReassignToTeamToolStripMenuItem.Name = "ReassignToTeamToolStripMenuItem";
+            ReassignToTeamToolStripMenuItem.Size = new Size(180, 22);
+            ReassignToTeamToolStripMenuItem.Text = "Reassign To Team";
             // 
             // DailyAssignment
             // 
@@ -131,5 +138,6 @@
         private ContextMenuStrip LabelContextMenu;
         private ToolStripMenuItem ToggleAvailabilityToolStripMenuItem;
         private ToolStripMenuItem FinalizeAssignmentsToolStripMenuItem;
+        private ToolStripMenuItem ReassignToTeamToolStripMenuItem;
     }
 }

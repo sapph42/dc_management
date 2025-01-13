@@ -51,8 +51,8 @@ public partial class SlotAssignment : Form {
             var newSlotID = _data.InsertSlot(
                 (int)_team.TeamID!,
                 (int)row.Cells[1].Value,
-                (int)row.Cells[2].Value,
-                (int)row.Cells[3].Value
+                Int32.Parse((string)row.Cells[2].Value),
+                Int32.Parse((string)row.Cells[3].Value)
             );
 
 

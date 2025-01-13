@@ -1,5 +1,5 @@
 ﻿namespace DCManagement.Classes; 
-public class Person {
+public class Person : IEquatable<Person> {
     private int? _teamID;
     private Team? _team;
     private bool _active = true;
@@ -67,9 +67,12 @@ public class Person {
         };
         return clone;
     }
-    public bool Equals(Person otherPerson) {
+    public bool Equals(Person? otherPerson) {
+        if (otherPerson == null) return false;
         return PersonID == otherPerson.PersonID;
     }
+    public override bool Equals(object? obj) => Equals(obj as Person);
+    public override int GetHashCode() => PersonID.GetHashCode();
     public void GenerateCenteredLabelTemplate(int centerXOn, int Y, Color backColor, Color? foreColor = null) {
         foreColor ??= Color.Black;
         Label = new() {

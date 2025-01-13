@@ -2,9 +2,7 @@
 using System.Data;
 using DCManagement.Resources;
 using Microsoft.Data.SqlClient;
-#if EXT
 using Microsoft.Data.Sqlite;
-#endif
 
 namespace DCManagement.Classes;
 public enum DataSource {
@@ -14,15 +12,13 @@ public enum DataSource {
 public class DataManagement {
     private string _sqlConnectionString;
     private readonly string _sqliteConnectionString;
-    private readonly string _sqlitePath;
     public DataSource DataSource { get; init; } = DataSource.SQL;
     public DataManagement() : this(DataSource.SQL) { }
     public DataManagement(DataSource source) {
         DataSource = source;
         string path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
-        string _sqlitePath = Path.Combine(path, "DCManagement.sqlite");
         SqliteConnectionStringBuilder clsb = new() {
-            DataSource = _sqlitePath
+            DataSource = Path.Combine(path, "DCManagement.sqlite")
         };
         _sqliteConnectionString = clsb.ConnectionString;
         if (DataSource == DataSource.SQL) {
@@ -202,23 +198,23 @@ public class DataManagement {
     private void InsertLocation_Sql(Location Location) {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertLocation";
         cmd.Parameters.AddRange(GetLocParameters_Sql(Location));
+        cmd.Connection = conn;
+        conn.Open();
         Location.LocID = (int)cmd.ExecuteScalar();
     }
     private void InsertLocation_Sqlite(Location Location) {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"INSERT INTO Location (Name, LocX, LocY, SizeW, SizeH)
                   VALUES (@Name, @LocX, @LocY, @SizeW, @SizeH);
                   SELECT last_insert_rowid();";
         cmd.Parameters.AddRange(GetLocParameters_Sqlite(Location));
+        cmd.Connection = conn;
+        conn.Open();
         Location.LocID = (int)cmd.ExecuteScalar()!;
     }
     public void UpdateLocation(Location Location) {
@@ -230,21 +226,21 @@ public class DataManagement {
     private void UpdateLocation_Sql(Location Location) {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdateLocation";
         cmd.Parameters.AddRange(GetLocParameters_Sql(true, Location));
+        cmd.Connection = conn;
+        conn.Open();
         _ = cmd.ExecuteNonQuery();
     }
     private void UpdateLocation_Sqlite(Location Location) {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "UPDATE Location SET [Name]=@Name, LocX=@LocX, LocY=@LocY, SizeW=@SizeW, SizeH=@SizeH WHERE LocID=@ID";
         cmd.Parameters.AddRange(GetLocParameters_Sqlite(true, Location));
+        cmd.Connection = conn;
+        conn.Open();
         _ = cmd.ExecuteNonQuery();
     }
     public string DeleteLocation(Location Location) {
@@ -256,11 +252,11 @@ public class DataManagement {
     private string DeleteLocation_Sql(Location Location) {
         using SqlConnection conn = new(_sqlConnectionString); ;
         using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.DeleteLocation";
         cmd.Parameters.AddRange(GetLocParameters_Sql(true, Location));
+        cmd.Connection = conn;
+        conn.Open();
         return cmd.ExecuteScalar().ToString()!;
     }
     private string DeleteLocation_Sqlite(Location Location) {
@@ -271,11 +267,11 @@ public class DataManagement {
                       WHERE LocID = @LocID;";
         using SqliteConnection conn = new(_sqlConnectionString); ;
         using SqliteCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = cascadeCheck;
         cmd.Parameters.AddRange(GetLocParameters_Sql(true, Location));
+        cmd.Connection = conn;
+        conn.Open();
         long teamCount = (long)cmd.ExecuteScalar()!;
         if (teamCount > 0) {
             return "Cascade";
@@ -423,23 +419,23 @@ public class DataManagement {
     private int AddNewPerson_Sql(Person Person) {
         using SqlConnection conn = new(_sqlConnectionString); ;
         using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertPerson";
         cmd.Parameters.AddRange(GetPersonParameters_Sql(Person)[1..]);
+        cmd.Connection = conn;
+        conn.Open();
         return (int)cmd.ExecuteScalar();
     }
     private int AddNewPerson_Sqlite(Person Person) {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "INSERT INTO Person(LastName, FirstName, TeamID, Active, Available) " +
             "VALUES(@LastName, @FirstName, @AdjustedTeam, @Active, @Available);" +
             "SELECT last_insert_rowid();";
         cmd.Parameters.AddRange(GetPersonParameters_Sqlite(Person)[1..]);
+        cmd.Connection = conn;
+        conn.Open();
         return (int)cmd.ExecuteScalar()!;
     }
     public Person GetPerson(int PersonID) {
@@ -545,7 +541,8 @@ public class DataManagement {
         object[] row = new object[7];
         while (reader.Read()) {
             _ = reader.GetValues(row);
-            people.Add(new Person(row));
+            Person person = GetPerson_Sql((int)row[0]);
+            people.Add(person);
         }
         reader.Close();
         return people;
@@ -562,7 +559,8 @@ public class DataManagement {
         object[] row = new object[7];
         while (reader.Read()) {
             _ = reader.GetValues(row);
-            people.Add(new Person(row));
+            Person person = GetPerson_Sqlite((int)row[0]);
+            people.Add(person);
         }
         reader.Close();
         return people;
@@ -648,11 +646,11 @@ public class DataManagement {
     private void UpdatePerson_Sql(Person Person, List<Skill> Skills) {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        cmd.Connection = conn; 
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdatePerson";
         cmd.Parameters.AddRange(GetPersonParameters_Sql(Person));
+        cmd.Connection = conn;
+        conn.Open();
         _ = cmd.ExecuteScalar();
 
         UpdatePersonSkills_Sql(Person, Skills);
@@ -660,13 +658,13 @@ public class DataManagement {
     private void UpdatePerson_Sqlite(Person Person, List<Skill> Skills) {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "UPDATE Person " +
             "SET FirstName=@FirstName, LastName=@LastName, TeamID=@AdjustedTeam, Active=@Active, Available=@Available " +
             "WHERE PersonID=@PersonID";
         cmd.Parameters.AddRange(GetPersonParameters_Sqlite(Person));
+        cmd.Connection = conn;
+        conn.Open();
 
         UpdatePersonSkills_Sqlite(Person, Skills);
     }
@@ -685,6 +683,8 @@ public class DataManagement {
         cmd.Parameters.Add("@SkillID", SqlDbType.Int);
         cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
         cmd.Parameters["@PersonID"].Value = Person.PersonID;
+        cmd.Connection = conn;
+        conn.Open();
         foreach (Skill st in Skills) {
             cmd.Parameters["@SkillID"].Value = st.SkillID;
             cmd.Parameters["@IsSet"].Value = Person.Skills.Contains(st);
@@ -713,6 +713,10 @@ public class DataManagement {
         deleteCmd.Parameters.Add("@PersonID", SqliteType.Integer);
         deleteCmd.Parameters.Add("@SkillID", SqliteType.Integer);
         deleteCmd.Parameters["@PersonID"].Value = Person.PersonID;
+        isSetCmd.Connection = conn;
+        insertCmd.Connection = conn;
+        deleteCmd.Connection = conn;
+        conn.Open();
         foreach (Skill st in Skills) {
             isSetCmd.Parameters["@SkillID"].Value = st.SkillID;
             willSet = Person.Skills.Contains(st) ? 1 : 0;
@@ -862,8 +866,6 @@ public class DataManagement {
     private int AddNewTeam_Sql(string Name, int TeamLeadID, int LocID, bool Fill, bool Active) {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertTeam";
         cmd.Parameters.Add("@Name", SqlDbType.VarChar);
@@ -876,13 +878,13 @@ public class DataManagement {
         cmd.Parameters["@LocID"].Value = LocID;
         cmd.Parameters["@Fill"].Value = Fill;
         cmd.Parameters["@Active"].Value = Active;
+        cmd.Connection = conn;
+        conn.Open();
         return (int)cmd.ExecuteScalar();
     }
     private int AddNewTeam_Sqlite(string Name, int TeamLeadID, int LocID, bool Fill, bool Active) {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "INSERT INTO Team(TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active) " +
             "VALUES (@Name, @AdjustedLead, @AdjustedLoc, @Fill, @Active);" +
@@ -897,6 +899,8 @@ public class DataManagement {
         cmd.Parameters["@LocID"].Value = LocID != 1 ? LocID : DBNull.Value; ;
         cmd.Parameters["@Fill"].Value = Fill ? 1 : 0;
         cmd.Parameters["@Active"].Value = Active ? 1 : 0;
+        cmd.Connection = conn;
+        conn.Open();
         return (int)cmd.ExecuteScalar()!;
     }
     public Team GetTeam(int TeamID) {
@@ -1072,23 +1076,23 @@ public class DataManagement {
     private void UpdateTeam_Sql(Team Team) {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdateTeam";
         cmd.Parameters.AddRange(GetTeamParameters_Sql(Team));
+        cmd.Connection = conn;
+        conn.Open();
         _ = cmd.ExecuteNonQuery();
     }
     private void UpdateTeam_Sqlite(Team Team) {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "UPDATE Team " +
             "SET TeamName=@Name, TeamLead=@AdjustedLead, PrimaryLocation=@AdjustedLoc, FillIfNoLead=@Fill, Active=@Active" +
             "WHERE TeamID=@TeamID";
         cmd.Parameters.AddRange(GetTeamParameters_Sql(Team));
+        cmd.Connection = conn;
+        conn.Open();
         _ = cmd.ExecuteNonQuery();
     }
     #endregion
@@ -1166,19 +1170,24 @@ public class DataManagement {
     private bool CheckForFinalizedAssignments_Sql() {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = @"dbo.CheckForFinalizedAssignments";
         cmd.Connection = conn;
-        return (bool)cmd.ExecuteScalar();
+        conn.Open();
+        var result = cmd.ExecuteScalar();
+        if (result is DBNull || result is null)
+            return false;
+        if (Convert.ToBoolean((int)result))
+            return true;
+        return false;
     }
     private bool CheckForFinalizedAssignments_Sqlite() {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
-        conn.Open();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT 1 FROM PersonAssignments WHERE AssignmentDate=DATE('now', 'localtime')";
         cmd.Connection = conn;
+        conn.Open();
         return ((int?)cmd.ExecuteScalar() ?? 0) == 1;
     }
     public List<Person> GetDefaultSlotAssignments(int TeamID, int SkillID, PersonCollection people) {
@@ -1255,10 +1264,10 @@ public class DataManagement {
         PersonCollection everyone = [];
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = @"dbo.GetPeople";
         cmd.Connection = conn;
+        conn.Open();
         using var reader = cmd.ExecuteReader();
         while (reader.Read()) {
             int personID = reader.GetInt32(0);
@@ -1271,7 +1280,11 @@ public class DataManagement {
                 if (person.Team is null && person.Available) {
                     person.Team = FloatTeam;
                     available.People.Add(person); //AvailablePeople
-                }
+                } else if (person.Team is not null)
+                    if (everyone.ContainsKey(person.Team.TeamLeadID))
+                        person.Team.TeamLead = everyone[person.Team.TeamLeadID];
+                    else if (person.Team.TeamLeadID != -1)
+                        person.Team.TeamLead = GetPerson_Sql(person.Team.TeamLeadID);
                 everyone.Add(person); //PeopleCollection
             }
         }
@@ -1288,10 +1301,10 @@ public class DataManagement {
         PersonCollection everyone = [];
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = @"dbo.GetPeople";
         cmd.Connection = conn;
+        conn.Open();
         using var reader = cmd.ExecuteReader();
         while (reader.Read()) {
             int personID = reader.GetInt32(0);
@@ -1304,7 +1317,11 @@ public class DataManagement {
                 if (person.Team is null && person.Available) {
                     person.Team = FloatTeam;
                     available.People.Add(person);
-                }
+                } else if (person.Team is not null)
+                    if (everyone.ContainsKey(person.Team.TeamLeadID))
+                        person.Team.TeamLead = everyone[person.Team.TeamLeadID];
+                    else 
+                        person.Team.TeamLead = GetPerson_Sqlite(personID);
                 everyone.Add(person); 
             }
         }
@@ -1327,10 +1344,11 @@ public class DataManagement {
         AvailablePeople AvailablePeople) {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = @"dbo.DailyRead";
         cmd.Connection = conn;
+        cmd.Connection = conn;
+        conn.Open();
         using SqlDataAdapter adapter = new(cmd);
         DataSet ds = new();
         adapter.Fill(ds);
@@ -1380,12 +1398,12 @@ public class DataManagement {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand teamCmd = new();
         using SqliteCommand personCmd = new();
-        conn.Open();
         teamCmd.CommandType = personCmd.CommandType = CommandType.Text;
         teamCmd.CommandText = "SELECT TeamID, LocID FROM TeamAssignments WHERE AssignmentDate==DATE('now', 'localtime')";
         personCmd.CommandText = "SELECT PersonID, TeamID, SlotID FROM PersonAssignments WHERE AssignmentDate=DATE('now', 'localtime')";
         teamCmd.Connection = conn;
         personCmd.Connection = conn;
+        conn.Open();
         using var teamReader = teamCmd.ExecuteReader();
         using var personReader = personCmd.ExecuteReader();
         DataTable teamData = new();
@@ -1440,9 +1458,9 @@ public class DataManagement {
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.Parameters.Add("@PersonID", SqlDbType.Int);
         cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.CommandText = "dbo.UnavailableToday";
         cmd.Connection = conn;
         conn.Open();
-        cmd.CommandText = "dbo.UnavailableToday";
         _ = cmd.ExecuteNonQuery();
     }
     private void SetPersonUnavailable_Sqlite(Person person) {
@@ -1451,10 +1469,10 @@ public class DataManagement {
         cmd.CommandType = CommandType.Text;
         cmd.Parameters.Add("@PersonID", SqliteType.Integer);
         cmd.Parameters["@PersonID"].Value = person.PersonID;
-        cmd.Connection = conn;
-        conn.Open();
         cmd.CommandText = "INSERT INTO Unavailability (PersonID, StartDate, EndDate) " +
             "VALUES (@PersonID, DATE('now', 'localtime'), DATE('now', 'localtime'))";
+        cmd.Connection = conn;
+        conn.Open();
         _ = cmd.ExecuteNonQuery();
     }
     public void SetPersonAvailable(Person person) {
@@ -1469,9 +1487,9 @@ public class DataManagement {
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.Parameters.Add("@PersonID", SqlDbType.Int);
         cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.CommandText = "dbo.AvailableToday";
         cmd.Connection = conn;
         conn.Open();
-        cmd.CommandText = "dbo.AvailableToday";
         _ = cmd.ExecuteNonQuery();
     }
     private void SetPersonAvailable_Sqlite(Person person) {
@@ -1499,9 +1517,9 @@ public class DataManagement {
         cmd.CommandType = CommandType.Text;
         cmd.Parameters.Add("@PersonID", SqliteType.Integer);
         cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.CommandText = deleteExactMatch;
         cmd.Connection = conn;
         conn.Open();
-        cmd.CommandText = deleteExactMatch;
         _ = cmd.ExecuteNonQuery();
 
         cmd.CommandText = checkOverlap;
@@ -1539,7 +1557,6 @@ public class DataManagement {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand teamCmd = new();
         using SqlCommand personCmd = new();
-        conn.Open();
         teamCmd.CommandType = CommandType.StoredProcedure;
         teamCmd.CommandText = @"dbo.DailyTeamWrite";
         teamCmd.Connection = conn;
@@ -1553,6 +1570,7 @@ public class DataManagement {
         personCmd.Parameters.Add("@PersonID", SqlDbType.Int);
         personCmd.Parameters.Add("@TeamID", SqlDbType.Int);
         personCmd.Parameters.Add("@SlotID", SqlDbType.Int);
+        conn.Open();
         foreach (var team in Teams) {
             teamCmd.Parameters["@TeamID"].Value = team.TeamID;
             if (team.CurrentAssignment is null) {
@@ -1635,6 +1653,7 @@ public class DataManagement {
         List<string> tables = [];
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
+        cmd.Connection = conn;
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'";
         conn.Open();
@@ -1652,6 +1671,7 @@ public class DataManagement {
         cmd.CommandText = "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @TableName";
         cmd.Parameters.Add("@TableName", SqlDbType.VarChar);
         cmd.Parameters["@TableName"].Value = tableName;
+        cmd.Connection = conn;
         conn.Open();
         using var reader = cmd.ExecuteReader();
         while (reader.Read()) {
@@ -1681,8 +1701,10 @@ public class DataManagement {
         cmd.ExecuteNonQuery();
         cmd.CommandText = $"DELETE FROM {TableName};";
         cmd.ExecuteNonQuery();
-        cmd.CommandText = $"DELETE FROM sqlite_sequence WHERE name='{TableName}';";
-        cmd.ExecuteNonQuery();
+        try {
+            cmd.CommandText = $"DELETE FROM sqlite_sequence WHERE name='{TableName}';";
+            cmd.ExecuteNonQuery();
+        } catch {  }
         cmd.CommandText = $"VACUUM;";
         cmd.ExecuteNonQuery();
     }
@@ -1693,10 +1715,13 @@ public class DataManagement {
         using SqlCommand sqlCmd = new();
         sqliteCmd.Connection = sqliteConn;
         sqlCmd.Connection = sqlConn;
+        sqliteConn.Open();
+        sqlConn.Open();
 
         sqlCmd.CommandText = $"SELECT * FROM {TableName}";
         using var sqlReader = sqlCmd.ExecuteReader();
         using var sqliteTrans = sqliteConn.BeginTransaction();
+        sqliteCmd.Transaction = sqliteTrans;
         while (sqlReader.Read()) {
             var columnNames = string.Join(", ", Columns.Select(c => c.ColumnName));
             var parameters = string.Join(", ", Columns.Select(c => $"@{c.ColumnName}"));
@@ -1704,7 +1729,7 @@ public class DataManagement {
             foreach (var column in Columns) {
                 var value = sqlReader[column.ColumnName];
                 if (value is DBNull)
-                    value = null;
+                    value = DBNull.Value;
                 else if (column.DataType == "datetime" || column.DataType == "datetime2")
                     value = Convert.ToDateTime(value).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
                 else if (column.DataType == "bit")

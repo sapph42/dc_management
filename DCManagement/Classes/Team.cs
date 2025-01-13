@@ -42,8 +42,30 @@ public class Team {
         FillIfNoLead = (bool)values[4];
         Active = (bool)values[5];
     }
+    public void AssignPerson(Person person, bool lockOverride = false) {
+        if (person.AssignmentLocked & !lockOverride)
+            return;
+        if (person.Team is not null &&
+            person.Team.Equals(this) &&
+            person.AssignedSlot is not null)
+            return;
+        person.Team = this;
+        var firstBestSlot = Slots.OrderBy(s => s.Priority).Where(s => person.Skills.Contains((Skill)s)).FirstOrDefault();
+        if (firstBestSlot is null)
+            return;
+        person.Team = this;
+        Slots
+            .Where(s => s.SkillID == firstBestSlot.SkillID)
+            .First()
+            .AssignToSlot(person);
+    }
     public void AssignPerson(Person person, int skillID, bool lockOverride = false) {
         if (person.AssignmentLocked & !lockOverride)
+            return;
+        if (person.Team is not null &&
+            person.Team.Equals(this) &&
+            person.AssignedSlot is not null &&
+            person.AssignedSlot.Priority > Slots.Where(s => s.SkillID == skillID).First().Priority)
             return;
         person.Team = this;
         Slots
