@@ -1625,8 +1625,6 @@ public class DataManagement {
     #region Backup Methods
     public void BackupSqlToSqlite() {
         var tables = GetSqlServerTables();
-        if (File.Exists(_sqlitePath))
-            File.Delete(_sqlitePath);
         foreach (var table in tables) {
             var columns = GetTableSchema(table);
             CreateSqliteTable(table,  columns);
@@ -1680,6 +1678,12 @@ public class DataManagement {
 
         cmd.CommandText = $"CREATE TABLE IF NOT EXISTS {TableName} ({columnDefs});";
         conn.Open();
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = $"DELETE FROM {TableName};";
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = $"DELETE FROM sqlite_sequence WHERE name='{TableName}';";
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = $"VACUUM;";
         cmd.ExecuteNonQuery();
     }
     private void TransferTableData(string TableName, List<(string ColumnName, string DataType)> Columns) {
