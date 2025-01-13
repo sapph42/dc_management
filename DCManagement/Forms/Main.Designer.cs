@@ -28,6 +28,7 @@
             TeamButton = new Button();
             DailyButton = new Button();
             button1 = new Button();
+            BackupButton = new Button();
             SuspendLayout();
             // 
             // LocationButton
@@ -80,11 +81,22 @@
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click;
             // 
+            // BackupButton
+            // 
+            BackupButton.Location = new Point(524, 194);
+            BackupButton.Name = "BackupButton";
+            BackupButton.Size = new Size(75, 23);
+            BackupButton.TabIndex = 5;
+            BackupButton.Text = "Backup Database";
+            BackupButton.UseVisualStyleBackColor = true;
+            BackupButton.Click += BackupButton_Click;
+            // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(BackupButton);
             Controls.Add(button1);
             Controls.Add(DailyButton);
             Controls.Add(TeamButton);
@@ -102,5 +114,6 @@
         private Button TeamButton;
         private Button DailyButton;
         private Button button1;
+        private Button BackupButton;
     }
 }

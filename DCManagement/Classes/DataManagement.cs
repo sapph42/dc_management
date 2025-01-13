@@ -13,10 +13,18 @@ public enum DataSource {
 }
 public class DataManagement {
     private string _sqlConnectionString;
+    private readonly string _sqliteConnectionString;
+    private readonly string _sqlitePath;
     public DataSource DataSource { get; init; } = DataSource.SQL;
     public DataManagement() : this(DataSource.SQL) { }
     public DataManagement(DataSource source) {
         DataSource = source;
+        string path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
+        string _sqlitePath = Path.Combine(path, "DCManagement.sqlite");
+        SqliteConnectionStringBuilder clsb = new() {
+            DataSource = _sqlitePath
+        };
+        _sqliteConnectionString = clsb.ConnectionString;
         if (DataSource == DataSource.SQL) {
             SqlConnectionStringBuilder csb = new() {
                 DataSource = GlobalResources.Server,
@@ -28,12 +36,7 @@ public class DataManagement {
             };
             _sqlConnectionString = csb.ConnectionString;
         } else {
-            string path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
-            string target = Path.Combine(path, "DCManagement.sqlite");
-            SqliteConnectionStringBuilder csb = new() {
-                DataSource = target
-            };
-            _sqlConnectionString = csb.ConnectionString;
+            _sqlConnectionString = _sqliteConnectionString;
         }
     }
     #region Floorplan Methods
@@ -1617,6 +1620,97 @@ public class DataManagement {
             }
         }
         conn.Close();
+    }
+    #endregion
+    #region Backup Methods
+    public void BackupSqlToSqlite() {
+        var tables = GetSqlServerTables();
+        if (File.Exists(_sqlitePath))
+            File.Delete(_sqlitePath);
+        foreach (var table in tables) {
+            var columns = GetTableSchema(table);
+            CreateSqliteTable(table,  columns);
+            TransferTableData(table, columns);
+        }
+    }
+    private List<string> GetSqlServerTables() {
+        List<string> tables = [];
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'";
+        conn.Open();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) {
+            tables.Add(reader.GetString(0));
+        }
+        return tables;
+    }
+    private List<(string ColumnName, string DataType)> GetTableSchema(string tableName) {
+        List<(string ColumnName, string DataType)> columns = [];
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @TableName";
+        cmd.Parameters.Add("@TableName", SqlDbType.VarChar);
+        cmd.Parameters["@TableName"].Value = tableName;
+        conn.Open();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) {
+            columns.Add((reader.GetString(0), reader.GetString(1)));
+        }
+        return columns;
+    }
+    private void CreateSqliteTable(string TableName, List<(string ColumnName, string DataType)> Columns) {
+        using SqliteConnection conn = new SqliteConnection(_sqliteConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.Connection = conn;
+        var columnDefs = string.Join(", ", Columns.Select(col => 
+        {
+            string sqliteType = col.DataType switch {
+                "int" => "INTEGER",
+                "bit" => "INTEGER",
+                "nvarchar" or "varchar" or "text" => "TEXT",
+                "datetime" or "datetime2" => "TEXT",
+                "float" => "REAL",
+                _ => "TEXT"
+            };
+            return $"{col.ColumnName} {sqliteType}";
+        }));
+
+        cmd.CommandText = $"CREATE TABLE IF NOT EXISTS {TableName} ({columnDefs});";
+        conn.Open();
+        cmd.ExecuteNonQuery();
+    }
+    private void TransferTableData(string TableName, List<(string ColumnName, string DataType)> Columns) {
+        using SqliteConnection sqliteConn = new SqliteConnection(_sqliteConnectionString);
+        using SqliteCommand sqliteCmd = new();
+        using SqlConnection sqlConn = new(_sqlConnectionString);
+        using SqlCommand sqlCmd = new();
+        sqliteCmd.Connection = sqliteConn;
+        sqlCmd.Connection = sqlConn;
+
+        sqlCmd.CommandText = $"SELECT * FROM {TableName}";
+        using var sqlReader = sqlCmd.ExecuteReader();
+        using var sqliteTrans = sqliteConn.BeginTransaction();
+        while (sqlReader.Read()) {
+            var columnNames = string.Join(", ", Columns.Select(c => c.ColumnName));
+            var parameters = string.Join(", ", Columns.Select(c => $"@{c.ColumnName}"));
+            sqliteCmd.CommandText = $"INSERT INTO {TableName} ({columnNames}) VALUES ({parameters})";
+            foreach (var column in Columns) {
+                var value = sqlReader[column.ColumnName];
+                if (value is DBNull)
+                    value = null;
+                else if (column.DataType == "datetime" || column.DataType == "datetime2")
+                    value = Convert.ToDateTime(value).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+                else if (column.DataType == "bit")
+                    value = (bool)value ? 1 : 0;
+                sqliteCmd.Parameters.AddWithValue($"@{column.ColumnName}", value);
+            }
+            sqliteCmd.ExecuteNonQuery();
+            sqliteCmd.Parameters.Clear();
+        }
+        sqliteTrans.Commit();
     }
     #endregion
 }

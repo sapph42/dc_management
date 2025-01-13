@@ -1,4 +1,6 @@
-﻿namespace DCManagement.Forms; 
+﻿using DCManagement.Classes;
+
+namespace DCManagement.Forms;
 public partial class Main : Form {
     public Main() {
         InitializeComponent();
@@ -27,5 +29,10 @@ public partial class Main : Form {
     private void button1_Click(object sender, EventArgs e) {
         Test test = new();
         test.Show();
+    }
+
+    private void BackupButton_Click(object sender, EventArgs e) {
+        DataManagement data = new(Program.Source);
+        data.BackupSqlToSqlite();
     }
 }
