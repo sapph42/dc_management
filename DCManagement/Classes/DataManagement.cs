@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System;
+using System.Data;
 using DCManagement.Resources;
 using Microsoft.Data.SqlClient;
 #if EXT
@@ -427,7 +428,16 @@ public class DataManagement {
         return (int)cmd.ExecuteScalar();
     }
     private int AddNewPerson_Sqlite(Person Person) {
-        throw new NotImplementedException();
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.Connection = conn;
+        conn.Open();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = "INSERT INTO Person(LastName, FirstName, TeamID, Active, Available) " +
+            "VALUES(@LastName, @FirstName, @AdjustedTeam, @Active, @Available);" +
+            "SELECT last_insert_rowid();";
+        cmd.Parameters.AddRange(GetPersonParameters_Sqlite(Person)[1..]);
+        return (int)cmd.ExecuteScalar()!;
     }
     public Person GetPerson(int PersonID) {
         if (DataSource == DataSource.SQL)
@@ -611,7 +621,7 @@ public class DataManagement {
             new SqliteParameter() {
                 ParameterName = "@TeamID",
                 SqliteType = SqliteType.Integer,
-                Value = person.TeamID
+                Value = person.TeamID == -1 ? DBNull.Value : person.TeamID
             },
             new SqliteParameter() {
                 ParameterName = "@Active",
@@ -633,28 +643,29 @@ public class DataManagement {
             UpdatePerson_Sqlite(Person, Skills);
     }
     private void UpdatePerson_Sql(Person Person, List<Skill> Skills) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
-        cmd.Connection = conn; conn.Open();
+        cmd.Connection = conn; 
+        conn.Open();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdatePerson";
         cmd.Parameters.AddRange(GetPersonParameters_Sql(Person));
         _ = cmd.ExecuteScalar();
 
-        cmd.CommandText = "dbo.SetPersonSkill";
-        cmd.Parameters.Clear();
-        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
-        cmd.Parameters.Add("@SkillID", SqlDbType.Int);
-        cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
-        cmd.Parameters["@PersonID"].Value = Person.PersonID;
-        foreach (Skill st in Skills) {
-            cmd.Parameters["@SkillID"].Value = st.SkillID;
-            cmd.Parameters["@IsSet"].Value = Person.Skills.Contains(st);
-            _ = cmd.ExecuteNonQuery();
-        }
+        UpdatePersonSkills_Sql(Person, Skills);
     }
     private void UpdatePerson_Sqlite(Person Person, List<Skill> Skills) {
-        throw new NotImplementedException();
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.Connection = conn;
+        conn.Open();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = "UPDATE Person " +
+            "SET FirstName=@FirstName, LastName=@LastName, TeamID=@AdjustedTeam, Active=@Active, Available=@Available " +
+            "WHERE PersonID=@PersonID";
+        cmd.Parameters.AddRange(GetPersonParameters_Sqlite(Person));
+
+        UpdatePersonSkills_Sqlite(Person, Skills);
     }
     public void UpdatePersonSkills(Person Person, List<Skill> Skills) {
         if (DataSource == DataSource.SQL)
@@ -665,8 +676,8 @@ public class DataManagement {
     private void UpdatePersonSkills_Sql(Person Person, List<Skill> Skills) {
         using SqlConnection conn = new(_sqlConnectionString); ;
         using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.SetPersonSkill";
-        cmd.Parameters.Clear();
         cmd.Parameters.Add("@PersonID", SqlDbType.Int);
         cmd.Parameters.Add("@SkillID", SqlDbType.Int);
         cmd.Parameters.Add("@IsSet", SqlDbType.Bit);
@@ -679,18 +690,36 @@ public class DataManagement {
     }
     private void UpdatePersonSkills_Sqlite(Person Person, List<Skill> Skills) {
         using SqliteConnection conn = new(_sqlConnectionString); ;
-        using SqliteCommand cmd = new();
-        throw new NotImplementedException();
-        cmd.CommandText = "dbo.SetPersonSkill";
-        cmd.Parameters.Clear();
-        cmd.Parameters.Add("@PersonID", SqliteType.Integer);
-        cmd.Parameters.Add("@SkillID", SqliteType.Integer);
-        cmd.Parameters.Add("@IsSet", SqliteType.Integer);
-        cmd.Parameters["@PersonID"].Value = Person.PersonID;
+        using SqliteCommand isSetCmd = new();
+        using SqliteCommand insertCmd = new();
+        using SqliteCommand deleteCmd = new();
+        string checkIsSet = "SELECT 1 FROM PersonSlot WHERE PersonID=@PersonID AND SlotTypeID=@SkillID";
+        string insertSkill = "INSERT INTO PersonSlot (PersonID, SlotTypeID) VALUES (@PersonID, @SkillID)";
+        string deleteSkill = "DELETE FROM PersonSlot WHERE PersonID=@PersonID AND SlotTypeID=@SkillID";
+        int isSetNow = 0;
+        int willSet = 0;
+        isSetCmd.CommandText = checkIsSet;
+        isSetCmd.Parameters.Add("@PersonID", SqliteType.Integer);
+        isSetCmd.Parameters.Add("@SkillID", SqliteType.Integer);
+        isSetCmd.Parameters["@PersonID"].Value = Person.PersonID;
+        insertCmd.CommandText = insertSkill;
+        insertCmd.Parameters.Add("@PersonID", SqliteType.Integer);
+        insertCmd.Parameters.Add("@SkillID", SqliteType.Integer);
+        insertCmd.Parameters["@PersonID"].Value = Person.PersonID;
+        deleteCmd.CommandText = deleteSkill;
+        deleteCmd.Parameters.Add("@PersonID", SqliteType.Integer);
+        deleteCmd.Parameters.Add("@SkillID", SqliteType.Integer);
+        deleteCmd.Parameters["@PersonID"].Value = Person.PersonID;
         foreach (Skill st in Skills) {
-            cmd.Parameters["@SkillID"].Value = st.SkillID;
-            cmd.Parameters["@IsSet"].Value = Person.Skills.Contains(st) ? 1 : 0;
-            _ = cmd.ExecuteNonQuery();
+            isSetCmd.Parameters["@SkillID"].Value = st.SkillID;
+            willSet = Person.Skills.Contains(st) ? 1 : 0;
+            isSetNow = (int)(isSetCmd.ExecuteScalar() ?? 0);
+            if (willSet == isSetNow)
+                continue;
+            if (willSet == 1)
+                _ = insertCmd.ExecuteNonQuery();
+            else
+                _ = deleteCmd.ExecuteNonQuery();
         }
     }
     #endregion
@@ -847,7 +876,25 @@ public class DataManagement {
         return (int)cmd.ExecuteScalar();
     }
     private int AddNewTeam_Sqlite(string Name, int TeamLeadID, int LocID, bool Fill, bool Active) {
-        throw new NotImplementedException();
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.Connection = conn;
+        conn.Open();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = "INSERT INTO Team(TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active) " +
+            "VALUES (@Name, @AdjustedLead, @AdjustedLoc, @Fill, @Active);" +
+            "SELECT last_insert_rowid();";
+        cmd.Parameters.Add("@Name", SqliteType.Text);
+        cmd.Parameters.Add("@Lead", SqliteType.Integer);
+        cmd.Parameters.Add("@LocID", SqliteType.Integer);
+        cmd.Parameters.Add("@Fill", SqliteType.Integer);
+        cmd.Parameters.Add("@Active", SqliteType.Integer);
+        cmd.Parameters["@Name"].Value = Name;
+        cmd.Parameters["@Lead"].Value = TeamLeadID != 1 ? TeamLeadID : DBNull.Value;
+        cmd.Parameters["@LocID"].Value = LocID != 1 ? LocID : DBNull.Value; ;
+        cmd.Parameters["@Fill"].Value = Fill ? 1 : 0;
+        cmd.Parameters["@Active"].Value = Active ? 1 : 0;
+        return (int)cmd.ExecuteScalar()!;
     }
     public Team GetTeam(int TeamID) {
         if (DataSource == DataSource.SQL)
@@ -876,7 +923,26 @@ public class DataManagement {
         throw new InvalidDataException("No such Team ID exists");
     }
     private Team GetTeam_Sqlite(int TeamID) {
-        throw new NotImplementedException();
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = "SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active " +
+            "FROM Team " +
+            "WHERE TeamID=@TeamID";
+        cmd.Parameters.Add("@TeamID", SqliteType.Integer);
+        cmd.Parameters["@TeamID"].Value = TeamID;
+        cmd.Connection = conn;
+        conn.Open();
+        using SqliteDataReader reader = cmd.ExecuteReader();
+        object[] row = new object[6];
+        Team team;
+        while (reader.Read()) {
+            _ = reader.GetValues(row);
+            team = new Team(row);
+            reader.Close();
+            return team;
+        }
+        throw new InvalidDataException("No such Team ID exists");
     }
     public List<Team> GetTeams(bool ShowActive = false) {
         if (DataSource == DataSource.SQL)
@@ -1008,10 +1074,19 @@ public class DataManagement {
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdateTeam";
         cmd.Parameters.AddRange(GetTeamParameters_Sql(Team));
-        _ = cmd.ExecuteScalar();
+        _ = cmd.ExecuteNonQuery();
     }
     private void UpdateTeam_Sqlite(Team Team) {
-        throw new NotImplementedException();
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.Connection = conn;
+        conn.Open();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = "UPDATE Team " +
+            "SET TeamName=@Name, TeamLead=@AdjustedLead, PrimaryLocation=@AdjustedLoc, FillIfNoLead=@Fill, Active=@Active" +
+            "WHERE TeamID=@TeamID";
+        cmd.Parameters.AddRange(GetTeamParameters_Sql(Team));
+        _ = cmd.ExecuteNonQuery();
     }
     #endregion
     #region TeamSlots Methods
