@@ -1,5 +1,5 @@
 ﻿namespace DCManagement.Classes; 
-public class Location {
+public class Location : IEquatable<Location> {
     public int LocID { get; set; }
     public string? Name { get; set; }
     public Point UpperLeft { get; set; }
@@ -46,9 +46,22 @@ public class Location {
         };
         return clone;
     }
-    public bool Equals(Location otherLocation) {
+    public bool Equals(Location? otherLocation) {
+        if (otherLocation is null) return false;
         return (LocID == otherLocation.LocID &&  Name == otherLocation.Name);
     }
+    public override bool Equals(object? obj) => Equals(obj as Location);
+    public static bool operator ==(Location? a, Location? b) {
+        if (a is null && b is null) return true;
+        if (a is null || b is null) return false;
+        return a.Equals(b);
+    }
+    public static bool operator !=(Location? a, Location? b) {
+        if (a is null && b is null) return false;
+        if (a is null || b is null) return true;
+        return !a.Equals(b);
+    }
+    public override int GetHashCode() => LocID.GetHashCode();
     public bool IsPointInside(Point point) {
         return point.X >= UpperLeft.X && point.X <= Rect.Right &&
             point.Y >= UpperLeft.Y && point.Y <= Rect.Bottom;

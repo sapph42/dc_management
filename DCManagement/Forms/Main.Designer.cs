@@ -27,77 +27,83 @@
             PersonButton = new Button();
             TeamButton = new Button();
             DailyButton = new Button();
-            button1 = new Button();
             BackupButton = new Button();
+            ReadOnlyButton = new Button();
             SuspendLayout();
             // 
             // LocationButton
             // 
-            LocationButton.Location = new Point(41, 53);
+            LocationButton.Location = new Point(32, 34);
             LocationButton.Name = "LocationButton";
-            LocationButton.Size = new Size(75, 23);
+            LocationButton.Size = new Size(104, 47);
             LocationButton.TabIndex = 0;
-            LocationButton.Text = "Location";
+            LocationButton.Text = "Location Management";
             LocationButton.UseVisualStyleBackColor = true;
+            LocationButton.Visible = false;
             LocationButton.Click += LocationButton_Click;
             // 
             // PersonButton
             // 
-            PersonButton.Location = new Point(167, 63);
+            PersonButton.Location = new Point(196, 34);
             PersonButton.Name = "PersonButton";
-            PersonButton.Size = new Size(75, 23);
+            PersonButton.Size = new Size(104, 47);
             PersonButton.TabIndex = 1;
-            PersonButton.Text = "Person";
+            PersonButton.Text = "Person Management";
             PersonButton.UseVisualStyleBackColor = true;
+            PersonButton.Visible = false;
             PersonButton.Click += PersonButton_Click;
             // 
             // TeamButton
             // 
-            TeamButton.Location = new Point(306, 68);
+            TeamButton.Location = new Point(32, 118);
             TeamButton.Name = "TeamButton";
-            TeamButton.Size = new Size(75, 23);
+            TeamButton.Size = new Size(104, 47);
             TeamButton.TabIndex = 2;
-            TeamButton.Text = "Team";
+            TeamButton.Text = "Team Management";
             TeamButton.UseVisualStyleBackColor = true;
+            TeamButton.Visible = false;
             TeamButton.Click += TeamButton_Click;
             // 
             // DailyButton
             // 
-            DailyButton.Location = new Point(448, 76);
+            DailyButton.Location = new Point(196, 118);
             DailyButton.Name = "DailyButton";
-            DailyButton.Size = new Size(75, 23);
+            DailyButton.Size = new Size(104, 47);
             DailyButton.TabIndex = 3;
-            DailyButton.Text = "Daily";
+            DailyButton.Text = "Daily Assignments";
             DailyButton.UseVisualStyleBackColor = true;
+            DailyButton.Visible = false;
             DailyButton.Click += DailyButton_Click;
-            // 
-            // button1
-            // 
-            button1.Location = new Point(356, 228);
-            button1.Name = "button1";
-            button1.Size = new Size(75, 23);
-            button1.TabIndex = 4;
-            button1.Text = "Test";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
             // 
             // BackupButton
             // 
-            BackupButton.Location = new Point(524, 194);
+            BackupButton.Location = new Point(32, 216);
             BackupButton.Name = "BackupButton";
-            BackupButton.Size = new Size(75, 23);
+            BackupButton.Size = new Size(104, 47);
             BackupButton.TabIndex = 5;
             BackupButton.Text = "Backup Database";
             BackupButton.UseVisualStyleBackColor = true;
+            BackupButton.Visible = false;
             BackupButton.Click += BackupButton_Click;
+            // 
+            // ReadOnlyButton
+            // 
+            ReadOnlyButton.Location = new Point(196, 216);
+            ReadOnlyButton.Name = "ReadOnlyButton";
+            ReadOnlyButton.Size = new Size(104, 47);
+            ReadOnlyButton.TabIndex = 6;
+            ReadOnlyButton.Text = "View Today's Assignments";
+            ReadOnlyButton.UseVisualStyleBackColor = true;
+            ReadOnlyButton.Visible = false;
+            ReadOnlyButton.Click += ReadOnlyButton_Click;
             // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(346, 308);
+            Controls.Add(ReadOnlyButton);
             Controls.Add(BackupButton);
-            Controls.Add(button1);
             Controls.Add(DailyButton);
             Controls.Add(TeamButton);
             Controls.Add(PersonButton);
@@ -113,7 +119,7 @@
         private Button PersonButton;
         private Button TeamButton;
         private Button DailyButton;
-        private Button button1;
         private Button BackupButton;
+        private Button ReadOnlyButton;
     }
 }

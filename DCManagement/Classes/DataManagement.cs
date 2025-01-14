@@ -417,7 +417,7 @@ public class DataManagement {
             return AddNewPerson_Sqlite(Person);
     }
     private int AddNewPerson_Sql(Person Person) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertPerson";
@@ -445,7 +445,7 @@ public class DataManagement {
             return GetPerson_Sqlite(PersonID);
     }
     private Person GetPerson_Sql(int PersonID) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetPersonData";
@@ -1177,7 +1177,7 @@ public class DataManagement {
         var result = cmd.ExecuteScalar();
         if (result is DBNull || result is null)
             return false;
-        if (Convert.ToBoolean((int)result))
+        if ((result is bool && (bool)result) || (result is int && Convert.ToBoolean((int)result)))
             return true;
         return false;
     }
@@ -1327,21 +1327,23 @@ public class DataManagement {
         }
         return (unavailable, available, everyone);
     }
-    public void LoadFinalizedAssignments(List<Team> Teams,
-        List<Team> DefunctTeams,
-        LocationCollection Locations,
-        PersonCollection People,
-        AvailablePeople AvailablePeople) {
+    public void LoadFinalizedAssignments(ref List<Team> Teams,
+        ref List<Team> DefunctTeams,
+        ref Floorplan Floorplan,
+        ref PersonCollection People,
+        ref AvailablePeople AvailablePeople) {
         if (DataSource == DataSource.SQL)
-            LoadFinalizedAssignments_Sql(Teams, DefunctTeams, Locations, People, AvailablePeople);
+            LoadFinalizedAssignments_Sql(Teams, DefunctTeams, Floorplan, People, AvailablePeople);
         else
-            LoadFinalizedAssignments_Sqlite(Teams, DefunctTeams, Locations, People, AvailablePeople);
+            LoadFinalizedAssignments_Sqlite(Teams, DefunctTeams, Floorplan, People, AvailablePeople);
     }
-    private void LoadFinalizedAssignments_Sql(List<Team> Teams, 
-        List<Team> DefunctTeams, 
-        LocationCollection Locations,
+    private void LoadFinalizedAssignments_Sql(List<Team> Teams,
+        List<Team> DefunctTeams,
+        Floorplan Floorplan,
         PersonCollection People,
         AvailablePeople AvailablePeople) {
+
+        LocationCollection Locations = Floorplan.Locations;
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
@@ -1359,7 +1361,9 @@ public class DataManagement {
         personData.Columns[0].ColumnName = "PersonID";
         personData.Columns[1].ColumnName = "TeamID";
         personData.Columns[2].ColumnName = "SlotID";
+
         var teamsInUse = teamData.AsEnumerable().Select(row => row.Field<int>("TeamID")).Cast<int>().ToList();
+        var teamsInUseByPerson = personData.AsEnumerable().Select(row => row.Field<int>("TeamID")).Cast<int>().ToList();
         Teams
             .Where(t => !teamsInUse
                             .Contains((int)t.TeamID!))
@@ -1368,33 +1372,58 @@ public class DataManagement {
                 Teams.Remove(t);
                 DefunctTeams.Add(t);
             });
-        foreach (DataRow row in teamData.Rows) {
-            Team thisTeam = Teams.Where(t => t.TeamID == (int)row["TeamID"]).First();
-            Location assignedLocation = Locations[(int)row["LocID"]];
-            thisTeam.CurrentAssignment = assignedLocation;
+        Teams
+            .Where(t => !teamsInUseByPerson
+                            .Contains((int)t.TeamID!))
+            .ToList()
+            .ForEach(t => {
+                Teams.Remove(t);
+                DefunctTeams.Add(t);
+            });
+        Dictionary<int, int> teamsToLocs = [];
+        teamData.Rows
+                .Cast<DataRow>()
+                .ToList()
+                .ForEach(r => 
+                    teamsToLocs.Add((int)r[0], (int)r[1])
+                );
+        Teams.ForEach(t => { 
+            t.CurrentAssignment = Locations[teamsToLocs[(int)t.TeamID!]];
+            t.Slots.ForEach(s => s.UnassignAll());
+        });
+        foreach (Team team in DefunctTeams) {
+            team.CurrentAssignment = null;
+            team.TeamLead = null;
+            team.Slots.ForEach(s => { s.UnassignAll(); });
         }
 
-        var assignedPeople = personData.AsEnumerable().Select(row => row.Field<int>("PersonID")).Cast<int>().ToList();
-        People
-            .Where(p => !assignedPeople.Contains(p.Key))
-            .ToList()
-            .ForEach(p => {
-                AvailablePeople.People.Add(p.Value);
-            });
-        foreach (DataRow row in personData.Rows) {
-            Person thisPerson = People[(int)row["PersonID"]];
-            Team assignedTeam = Teams.Where(t => t.TeamID == (int)row["TeamID"]).First();
-            Slot assignedSlot = assignedTeam.Slots.Where(s => s.SlotID == (int)row["SlotID"]).First();
-            thisPerson.Team = assignedTeam;
-            assignedSlot.AssignToSlot(thisPerson);
-            thisPerson.AssignmentLocked = true;
+        personData.Rows
+                  .Cast<DataRow>()
+                  .ToList()
+                  .ForEach(r => {
+                      Team team = Teams.First(t => t.TeamID == (int)r[1]);
+                      int personID = (int)r[0];
+                      People.AssignTeam(personID, team);
+                      team.AssignPerson(People[personID], (int)r[2], null, true);
+                      People[personID].AssignmentLocked = true;
+        });
+
+        AvailablePeople = new();
+        foreach (int personID in GetFinalizedFloats_Sql()) {
+            if (People.ContainsKey(personID))
+                AvailablePeople.Add(People[personID]);
+            else {
+                Person floater = GetPerson_Sql(personID);
+                AvailablePeople.Add(floater);
+            }
         }
     }
     private void LoadFinalizedAssignments_Sqlite(List<Team> Teams,
     List<Team> DefunctTeams,
-    LocationCollection Locations,
+    Floorplan Floorplan,
     PersonCollection People,
     AvailablePeople AvailablePeople) {
+        LocationCollection Locations = Floorplan.Locations;
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand teamCmd = new();
         using SqliteCommand personCmd = new();
@@ -1445,6 +1474,45 @@ public class DataManagement {
             assignedSlot.AssignToSlot(thisPerson);
             thisPerson.AssignmentLocked = true;
         }
+    }
+    private List<int> GetFinalizedFloats() {
+        if (DataSource == DataSource.SQL)
+            return GetFinalizedFloats_Sql();
+        else
+            return GetFinalizedFloats_Sqlite();
+    }
+    private List<int> GetFinalizedFloats_Sql() {
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.CommandText = "dbo.DailyFloat";
+        cmd.Connection = conn;
+        conn.Open();
+        List<int> floats = [];
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) {
+            floats.Add(reader.GetInt32(0));
+        }
+        return floats;
+    }
+    private List<int> GetFinalizedFloats_Sqlite() {
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = "SELECT PersonID " +
+            "FROM Person " +
+            "WHERE PersonID NOT IN (" +
+            "SELECT PersonID " +
+            "FROM PersonAssignments " +
+            "WHERE AssignmentDate = DATE('now', 'localtime'))";
+        cmd.Connection = conn;
+        conn.Open();
+        List<int> floats = [];
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) {
+            floats.Add(reader.GetInt32(0));
+        }
+        return floats;
     }
     public void SetPersonUnavailable(Person person) {
         if (DataSource == DataSource.SQL)

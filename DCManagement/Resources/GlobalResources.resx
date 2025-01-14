@@ -117,8 +117,20 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="AssignmentGroup" xml:space="preserve">
+    <value>EAMC DENTAC DCM Assignment Editors</value>
+  </data>
+  <data name="ClinicGroup" xml:space="preserve">
+    <value>EAMC DENTAC DCM Clinic Editors</value>
+  </data>
   <data name="Database" xml:space="preserve">
     <value>DCManagement</value>
+  </data>
+  <data name="PersonnelGroup" xml:space="preserve">
+    <value>EAMC DENTAC DCM Personnel Editors</value>
+  </data>
+  <data name="ReadOnlyGroup" xml:space="preserve">
+    <value>EAMC_SEC_DDS_DENTALUSERS</value>
   </data>
   <data name="Server" xml:space="preserve">
     <value>EAMCDB400481</value>

@@ -61,11 +61,47 @@ namespace DCManagement.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to EAMC DENTAC DCM Assignment Editors.
+        /// </summary>
+        internal static string AssignmentGroup {
+            get {
+                return ResourceManager.GetString("AssignmentGroup", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to EAMC DENTAC DCM Clinic Editors.
+        /// </summary>
+        internal static string ClinicGroup {
+            get {
+                return ResourceManager.GetString("ClinicGroup", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to DCManagement.
         /// </summary>
         internal static string Database {
             get {
                 return ResourceManager.GetString("Database", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to EAMC DENTAC DCM Personnel Editors.
+        /// </summary>
+        internal static string PersonnelGroup {
+            get {
+                return ResourceManager.GetString("PersonnelGroup", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to EAMC_SEC_DDS_DENTALUSERS.
+        /// </summary>
+        internal static string ReadOnlyGroup {
+            get {
+                return ResourceManager.GetString("ReadOnlyGroup", resourceCulture);
             }
         }
         

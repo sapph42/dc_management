@@ -55,7 +55,7 @@ public partial class TeamManagement : Form {
         if (_teams.Count == 0)
             return;
         _boxDirty = false;
-        TeamListbox.DataSource = new BindingSource(_teams, null);
+        TeamListbox.DataSource = new BindingSource(_teams.OrderBy(kvp => kvp.Value), null);
         TeamListbox.DisplayMember = "Value";
         TeamListbox.ValueMember = "Key";
         TeamListbox.Refresh();
@@ -68,11 +68,11 @@ public partial class TeamManagement : Form {
     private void TeamManagement_Load(object sender, EventArgs e) {
         GetLocations();
         _people = _data.GetPersonList();
-        LocationCombobox.DataSource = new BindingSource(_locations.ListboxDatasource, null);
+        LocationCombobox.DataSource = new BindingSource(_locations.ListboxDatasource.OrderBy(kvp => kvp.Value), null);
         LocationCombobox.DisplayMember = "Value";
         LocationCombobox.ValueMember = "Key";
         LocationCombobox.BindingContext = new();
-        LeadCombobox.DataSource = new BindingSource(_people.ListboxDatasource, null);
+        LeadCombobox.DataSource = new BindingSource(_people.ListboxDatasource.OrderBy(kvp => kvp.Value), null);
         LeadCombobox.DisplayMember = "Value";
         LeadCombobox.ValueMember = "Key";
         LeadCombobox.BindingContext = new();

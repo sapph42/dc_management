@@ -20,6 +20,10 @@ public class TeamSlots : List<Slot> {
             return this.Where(ts => ts.HasAvailableForGoal).Select(ts => ts.SkillID).ToArray();
         }
     }
+    public void AssignByID(Person Person, int SlotID) {
+        RemovePerson(Person);
+        this.First(s => s.SlotID == SlotID).AssignToSlot(Person);
+    }
     /// <summary>
     /// 
     /// </summary>

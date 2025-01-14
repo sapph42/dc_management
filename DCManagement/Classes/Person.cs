@@ -72,6 +72,16 @@ public class Person : IEquatable<Person> {
         return PersonID == otherPerson.PersonID;
     }
     public override bool Equals(object? obj) => Equals(obj as Person);
+    public static bool operator ==(Person? a, Person? b) {
+        if (a is null && b is null) return true;
+        if (a is null || b is null) return false;
+        return a.Equals(b);
+    }
+    public static bool operator !=(Person? a, Person? b) {
+        if (a is null && b is null) return false;
+        if (a is null || b is null) return true;
+        return !a.Equals(b);
+    }
     public override int GetHashCode() => PersonID.GetHashCode();
     public void GenerateCenteredLabelTemplate(int centerXOn, int Y, Color backColor, Color? foreColor = null) {
         foreColor ??= Color.Black;

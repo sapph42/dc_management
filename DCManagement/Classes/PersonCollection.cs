@@ -22,6 +22,12 @@ public class PersonCollection : Dictionary<int, Person> {
         Add(personID, person);
         _idsAndNames.Add(personID, person.FullName);
     }
+    public void AssignTeam(Person Person, Team team) {
+        this[(int)Person.PersonID!].Team = team;
+    }
+    public void AssignTeam(int PersonID, Team team) {
+        this[PersonID].Team = team;
+    }
     public PersonCollection Clone() {
         PersonCollection cloned = [];
         cloned.AddRangeUnsafe(this);

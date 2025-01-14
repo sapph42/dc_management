@@ -51,9 +51,26 @@ public class Slot : Skill {
         SlotColor = skill.SlotColor;
     }
     public void AssignToSlot(Person person) {
-        _assinged.Add(person);
+        if (!_assinged.Contains(person))
+            _assinged.Add(person);
         person.AssignedSlot = this;
     }
+    public bool Equals(Slot? otherSlot) {
+        if (otherSlot is null) return false;
+        return SlotID == otherSlot.SlotID;
+    }
+    public override bool Equals(object? obj) => Equals(obj as Slot);
+    public static bool operator ==(Slot? a, Slot? b) {
+        if (a is null && b is null) return true;
+        if (a is null || b is null) return false;
+        return a.Equals(b);
+    }
+    public static bool operator !=(Slot? a, Slot? b) {
+        if (a is null && b is null) return false;
+        if (a is null || b is null) return true;
+        return !a.Equals(b);
+    }
+    public override int GetHashCode() => SlotID.GetHashCode();
     public Person GetAssignee(int iterator) {
         return _assinged[iterator];
     }
@@ -70,7 +87,8 @@ public class Slot : Skill {
         _assinged.Clear();
     }
     public void UnassignToSlot(Person person) {
-        _assinged.Remove(person);
+        while (_assinged.Contains(person))
+            _assinged.Remove(person);
         person.AssignedSlot = null;
     }
 }

@@ -17,6 +17,15 @@ public class AvailablePeople {
     public AvailablePeople() {
         _people = [];
     }
+    public void Add(Person? person) {
+        if (person is null)
+            return;
+        if (_people.Contains(person))
+            return;
+        if (!person.Active || !person.Available)
+            return;
+        _people.Add(person);
+    }
     /// <summary>
     /// Get the number of available people with a given skill.
     /// </summary>
@@ -43,5 +52,12 @@ public class AvailablePeople {
         Person person = _people.Where(p => p.HasSkill(SkillTypeID)).Random();
         _people.Remove(person);
         return person;
+    }
+    public void Remove(Person? person) {
+        if (person is null) 
+            return;
+        if (!_people.Contains(person)) 
+            return;
+        _people.Remove(person);
     }
 }

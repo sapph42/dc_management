@@ -1,5 +1,5 @@
 ﻿namespace DCManagement.Classes; 
-public class Team {
+public class Team : IEquatable<Team> {
     private int? _teamLead;
     private int? _primaryLoc;
     public int? TeamID { get; set; }
@@ -26,7 +26,6 @@ public class Team {
     public string TeamName { get; set; }
     public Location? CurrentAssignment { get; set; }
     public TeamSlots Slots { get; set; } = [];
-
     public LabelPattern? LabelPattern { get; set; }
     public Team() {
         TeamName = string.Empty;
@@ -73,9 +72,26 @@ public class Team {
             .First()
             .AssignToSlot(person);
     }
-    public bool Equals(Team otherTeam) {
+    public void AssignPerson(Person person, int SlotID, int? skillID, bool lockOverride = false) {
+        person.Team = this;
+        Slots.AssignByID(person, SlotID);
+    }
+    public bool Equals(Team? otherTeam) {
+        if (otherTeam is null) return false;
         return TeamID == otherTeam.TeamID;
     }
+    public override bool Equals(object? obj) => Equals(obj as Team);
+    public static bool operator ==(Team? a, Team? b) {
+        if (a is null && b is null) return true;
+        if (a is null || b is null) return false;
+        return a.Equals(b);
+    }
+    public static bool operator !=(Team? a, Team? b) {
+        if (a is null && b is null) return false;
+        if (a is null || b is null) return true;
+        return !a.Equals(b);
+    }
+    public override int GetHashCode() => TeamID.GetHashCode();
     public bool HasAvailablePersonnel(bool targetGoal = false) {
         if (targetGoal) 
             return Slots.Any(s => s.HasAvailableForGoal);

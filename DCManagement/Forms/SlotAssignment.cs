@@ -51,8 +51,8 @@ public partial class SlotAssignment : Form {
             var newSlotID = _data.InsertSlot(
                 (int)_team.TeamID!,
                 (int)row.Cells[1].Value,
-                Int32.Parse((string)row.Cells[2].Value),
-                Int32.Parse((string)row.Cells[3].Value)
+                Int32.Parse(row.Cells[2].Value.ToString() ?? "0"),
+                Int32.Parse(row.Cells[3].Value.ToString() ?? "0")
             );
 
 
@@ -64,8 +64,8 @@ public partial class SlotAssignment : Form {
                 Description = thisSkill.Description,
                 SlotColor = thisSkill.SlotColor,
                 Priority = thisSkill.Priority,
-                MinQty = Int32.Parse((string)row.Cells[2].Value),
-                GoalQty = Int32.Parse((string)row.Cells[3].Value)
+                MinQty = Int32.Parse(row.Cells[2].Value.ToString() ?? "0"),
+                GoalQty = Int32.Parse(row.Cells[3].Value.ToString() ?? "0")
             });
             _inserting = false;
             _isRowDirty = false;
@@ -76,8 +76,8 @@ public partial class SlotAssignment : Form {
             (int)row.Cells[0].Value,
             (int)_team.TeamID!,
             (int)row.Cells[1].Value,
-            (int)row.Cells[2].Value,
-            (int)row.Cells[3].Value
+            Int32.Parse(row.Cells[2].Value.ToString() ?? "0"),
+            Int32.Parse(row.Cells[3].Value.ToString() ?? "0")
         );
         if (result == 0)
             return;
@@ -91,8 +91,8 @@ public partial class SlotAssignment : Form {
                 Description = thisSkill.Description,
                 SlotColor = thisSkill.SlotColor,
                 Priority = thisSkill.Priority,
-                MinQty = Int32.Parse((string)row.Cells[2].Value),
-                GoalQty = Int32.Parse((string)row.Cells[3].Value)
+                MinQty = Int32.Parse(row.Cells[2].Value.ToString() ?? "0"),
+                GoalQty = Int32.Parse(row.Cells[3].Value.ToString() ?? "0")
             };
             break;
         }
