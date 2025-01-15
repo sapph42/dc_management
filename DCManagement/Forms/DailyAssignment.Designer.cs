@@ -34,6 +34,7 @@
             LabelContextMenu = new ContextMenuStrip(components);
             ToggleAvailabilityToolStripMenuItem = new ToolStripMenuItem();
             ReassignToTeamToolStripMenuItem = new ToolStripMenuItem();
+            ExportPDFToolStripMenuItem = new ToolStripMenuItem();
             EditMenu.SuspendLayout();
             LabelContextMenu.SuspendLayout();
             SuspendLayout();
@@ -49,7 +50,7 @@
             // 
             // EditTSMI
             // 
-            EditTSMI.DropDownItems.AddRange(new ToolStripItem[] { RefreshToolStripMenuItem, FinalizeAssignmentsToolStripMenuItem });
+            EditTSMI.DropDownItems.AddRange(new ToolStripItem[] { RefreshToolStripMenuItem, FinalizeAssignmentsToolStripMenuItem, ExportPDFToolStripMenuItem });
             EditTSMI.Name = "EditTSMI";
             EditTSMI.Size = new Size(39, 20);
             EditTSMI.Text = "Edit";
@@ -91,20 +92,27 @@
             // 
             LabelContextMenu.Items.AddRange(new ToolStripItem[] { ToggleAvailabilityToolStripMenuItem, ReassignToTeamToolStripMenuItem });
             LabelContextMenu.Name = "LabelContextMenu";
-            LabelContextMenu.Size = new Size(181, 70);
+            LabelContextMenu.Size = new Size(171, 48);
             // 
             // ToggleAvailabilityToolStripMenuItem
             // 
             ToggleAvailabilityToolStripMenuItem.Name = "ToggleAvailabilityToolStripMenuItem";
-            ToggleAvailabilityToolStripMenuItem.Size = new Size(180, 22);
+            ToggleAvailabilityToolStripMenuItem.Size = new Size(170, 22);
             ToggleAvailabilityToolStripMenuItem.Text = "Toggle Availability";
             ToggleAvailabilityToolStripMenuItem.Click += ToggleAvailabilityToolStripMenuItem_Click;
             // 
             // ReassignToTeamToolStripMenuItem
             // 
             ReassignToTeamToolStripMenuItem.Name = "ReassignToTeamToolStripMenuItem";
-            ReassignToTeamToolStripMenuItem.Size = new Size(180, 22);
+            ReassignToTeamToolStripMenuItem.Size = new Size(170, 22);
             ReassignToTeamToolStripMenuItem.Text = "Reassign To Team";
+            // 
+            // ExportPDFToolStripMenuItem
+            // 
+            ExportPDFToolStripMenuItem.Name = "ExportPDFToolStripMenuItem";
+            ExportPDFToolStripMenuItem.Size = new Size(184, 22);
+            ExportPDFToolStripMenuItem.Text = "Export PDF";
+            ExportPDFToolStripMenuItem.Click += ExportPDFToolStripMenuItem_Click;
             // 
             // DailyAssignment
             // 
@@ -139,5 +147,6 @@
         private ToolStripMenuItem ToggleAvailabilityToolStripMenuItem;
         private ToolStripMenuItem FinalizeAssignmentsToolStripMenuItem;
         private ToolStripMenuItem ReassignToTeamToolStripMenuItem;
+        private ToolStripMenuItem ExportPDFToolStripMenuItem;
     }
 }

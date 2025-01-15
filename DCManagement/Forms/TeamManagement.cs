@@ -37,7 +37,8 @@ public partial class TeamManagement : Form {
             (int)(LeadCombobox.SelectedValue ?? -1),
             (int)(LocationCombobox.SelectedValue ?? -1),
             FillCheckbox.Checked,
-            ActiveCheckbox.Checked
+            ActiveCheckbox.Checked,
+            ClinicalCheckbox.Checked
         );
         _insert = false;
         RefreshBox(newTeam);
@@ -87,6 +88,7 @@ public partial class TeamManagement : Form {
         LeadCombobox.SelectedValue = -1;
         FillCheckbox.Checked = true;
         ActiveCheckbox.Checked = true;
+        ClinicalCheckbox.Checked = true;
         SlotButton.Enabled = false;
         _insert = true;
     }
@@ -101,6 +103,7 @@ public partial class TeamManagement : Form {
             _selectedTeam.TeamLeadID = (int?)LeadCombobox.SelectedValue ?? -1;
             _selectedTeam.FillIfNoLead = FillCheckbox.Checked;
             _selectedTeam.Active = ActiveCheckbox.Checked;
+            _selectedTeam.Clinical = ClinicalCheckbox.Checked;
             if (_selectedTeam.TeamName != TeamListbox.GetItemText(TeamListbox.SelectedItem))
                 _boxDirty = true;
             if (!ActiveCheckbox.Checked)

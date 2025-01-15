@@ -24,6 +24,7 @@ public class Team : IEquatable<Team> {
     public bool FillIfNoLead { get; set; } = true;
     public bool Active { get; set; } = true;
     public string TeamName { get; set; }
+    public bool Clinical { get; set; } = true;
     public Location? CurrentAssignment { get; set; }
     public TeamSlots Slots { get; set; } = [];
     public LabelPattern? LabelPattern { get; set; }
@@ -40,6 +41,10 @@ public class Team : IEquatable<Team> {
         _primaryLoc = values[3] == DBNull.Value ? null : (int)values[3];
         FillIfNoLead = (bool)values[4];
         Active = (bool)values[5];
+        if (values[6] is bool)
+            Clinical = (bool)values[6];
+        else 
+            Clinical = Convert.ToBoolean(values[6]);
     }
     public void AssignPerson(Person person, bool lockOverride = false) {
         if (person.AssignmentLocked & !lockOverride)

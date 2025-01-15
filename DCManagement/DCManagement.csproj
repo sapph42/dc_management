@@ -8,9 +8,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
 	<ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
 	<Configurations>Debug;Release;Ext</Configurations>
+	<AssemblyVersion>0.9.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="itext7" Version="9.0.0" />
+    <PackageReference Include="itext7.bouncy-castle-fips-adapter" Version="9.0.0" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     <PackageReference Include="System.DirectoryServices.AccountManagement" Version="9.0.0" />

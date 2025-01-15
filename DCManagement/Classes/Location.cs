@@ -2,6 +2,7 @@
 public class Location : IEquatable<Location> {
     public int LocID { get; set; }
     public string? Name { get; set; }
+    public bool Clinical { get; set; } = true;
     public Point UpperLeft { get; set; }
     public Size Size { get; set; }
     public Rectangle Rect {
@@ -38,11 +39,15 @@ public class Location : IEquatable<Location> {
         Name = (string)values[1];
         UpperLeft = new((int)values[2], (int)values[3]);
         Size = new((int)values[4], (int)values[5]);
+        if (values[6] is bool)
+            Clinical = (bool)values[6];
+        else Convert.ToBoolean(values[6]);
     }
     public Location Clone() {
         Location clone = new(Rect) {
             LocID = this.LocID,
-            Name = this.Name
+            Name = this.Name,
+            Clinical = this.Clinical
         };
         return clone;
     }

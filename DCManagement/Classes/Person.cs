@@ -1,4 +1,6 @@
-﻿namespace DCManagement.Classes; 
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace DCManagement.Classes; 
 public class Person : IEquatable<Person> {
     private int? _teamID;
     private Team? _team;
@@ -83,6 +85,8 @@ public class Person : IEquatable<Person> {
         return !a.Equals(b);
     }
     public override int GetHashCode() => PersonID.GetHashCode();
+
+    [MemberNotNull(nameof(Label))]
     public void GenerateCenteredLabelTemplate(int centerXOn, int Y, Color backColor, Color? foreColor = null) {
         foreColor ??= Color.Black;
         Label = new() {
@@ -103,6 +107,8 @@ public class Person : IEquatable<Person> {
         };
         Label.Location = loc;
     }
+
+    [MemberNotNull(nameof(Label))]
     public void GenerateLabelTemplate(Color backColor, Color? foreColor = null) {
         foreColor ??= Color.Black;
         Label = new() {

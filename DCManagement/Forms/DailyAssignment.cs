@@ -1,6 +1,13 @@
 ﻿using DCManagement.Classes;
+using iText.IO.Image;
+using iText.Kernel.Geom;
+using iText.Kernel.Pdf;
+using iText.Layout;
 using Microsoft.VisualBasic.Logging;
 using System.Diagnostics;
+using System.Drawing.Imaging;
+using Point = System.Drawing.Point;
+using Rectangle = System.Drawing.Rectangle;
 
 namespace DCManagement.Forms;
 public partial class DailyAssignment : Form {
@@ -17,7 +24,7 @@ public partial class DailyAssignment : Form {
     };
     private AvailablePeople _availablePeople = new();
     private List<Person> _unavailablePeople = [];
-    private  List<Team> _defunctTeams = [];
+    private List<Team> _defunctTeams = [];
     private Floorplan _floorplan;
     private Size _maxSize;
     private readonly List<Label> _labels = [];
@@ -323,35 +330,41 @@ public partial class DailyAssignment : Form {
     }
     private void ToggleUnavailable(Person person, bool toFloat = true) {
         if (person.Available) {
-            _data.SetPersonUnavailable(person);
-            person.Available = false;
-            _unavailablePeople.Add(person);
-            Team? targetTeam = person.Team;
-            if (targetTeam is not null) {
-                if (targetTeam.Equals(_float)) {
-                    _availablePeople.People.Remove(person);
-                    Controls.Remove(person.Label);
-                    DrawFloat();
-                } else {
-                    Controls.Remove(person.Label);
-                    person.RemoveFromTeam();
-                    targetTeam.LabelPattern = DetermineTeamPattern(targetTeam);
-                    DeleteLables(targetTeam);
-                    CreateLabels(targetTeam);
-                    targetTeam.RemovePerson(person);
-                }
-            }
-            DrawUnavailable();
-            person.AssignedSlot = null;
+            SetUnavailable(person);
         } else {
-            _data.SetPersonAvailable(person);
-            _unavailablePeople.Remove(person);
-            Controls.Remove(person.Label);
-            _unavailable.RemovePerson(person);
-            DrawUnavailable();
-            if (toFloat)
-                MoveToFloat(person);
+            SetAvailable(person, toFloat);
         }
+    }
+    private void SetUnavailable(Person person) {
+        _data.SetPersonUnavailable(person);
+        person.Available = false;
+        _unavailablePeople.Add(person);
+        Team? targetTeam = person.Team;
+        if (targetTeam is not null) {
+            if (targetTeam.Equals(_float)) {
+                _availablePeople.People.Remove(person);
+                Controls.Remove(person.Label);
+                DrawFloat();
+            } else {
+                Controls.Remove(person.Label);
+                person.RemoveFromTeam();
+                targetTeam.LabelPattern = DetermineTeamPattern(targetTeam);
+                DeleteLables(targetTeam);
+                CreateLabels(targetTeam);
+                targetTeam.RemovePerson(person);
+            }
+        }
+        DrawUnavailable();
+        person.AssignedSlot = null;
+    }
+    private void SetAvailable(Person person, bool toFloat = true) {
+        _data.SetPersonAvailable(person);
+        _unavailablePeople.Remove(person);
+        Controls.Remove(person.Label);
+        _unavailable.RemovePerson(person);
+        DrawUnavailable();
+        if (toFloat)
+            MoveToFloat(person);
     }
     private void MoveToFloat(Person person) {
         person.Available = true;
@@ -402,15 +415,22 @@ public partial class DailyAssignment : Form {
         if (loc is null)
             return;
         Team? newTeam = _teams.Where(t => t.CurrentAssignment is not null && t.CurrentAssignment.Equals(loc)).FirstOrDefault();
+        if (_unavailable.LocationID == loc.LocID) {
+            if (tag is Person)
+                SetUnavailable((Person)tag);
+            else if (tag is Team)
+                SetUnavailable(((Team)tag).TeamLead!);
+            return;
+        } else if (_float.LocationID == loc.LocID) {
+            if (tag is Person)
+                MoveToFloat((Person)tag);
+            else if (tag is Team)
+                MoveToFloat(((Team)tag).TeamLead!);
+            return;
+        }
         if (newTeam is null && tag is not Team
             )
             newTeam = _defunctTeams.Where(t => t.PrimaryLocation is not null && t.PrimaryLocation.Equals(loc)).FirstOrDefault();
-        if (newTeam is null) {
-            if (_unavailable.LocationID == loc.LocID)
-                newTeam = _unavailable;
-            else if (_float.LocationID == loc.LocID)
-                newTeam = _float;
-        }
         Team currentTeam;
         if (newTeam is null && tag is Team defunctToValid) {
             currentTeam = defunctToValid;
@@ -481,14 +501,19 @@ public partial class DailyAssignment : Form {
             _teams.Remove(currentTeam);
             _defunctTeams.Add(currentTeam);
         } else if (newTeam is not null && tag is Person person) {
-            person = _people[(int)person.PersonID!];
+            if (_people.ContainsKey((int)person.PersonID!))
+                person = _people[(int)person.PersonID!];
+            else if (_unavailablePeople.Contains(person)) {
+                _unavailablePeople.Remove(person);
+                _people.Add(person);
+                person.Available = true;
+            }
             Slot? slot = newTeam.HighestPriorityMatch(person);
             if (slot is null)
                 return;
-            person = _people[(int)person.PersonID!];
             ReassignToTeam(person, newTeam);
             ReassignToTeam(person, newTeam);
-        } else if (newTeam is null && tag is Person onlyMember && onlyMember.Team is not null && onlyMember.Team.Slots.SelectMany(s => s.Assigned).Count() == 1 ) {
+        } else if (newTeam is null && tag is Person onlyMember && onlyMember.Team is not null && onlyMember.Team.Slots.SelectMany(s => s.Assigned).Count() == 1) {
             currentTeam = onlyMember.Team;
             currentTeam.CurrentAssignment = loc;
             SuspendLayout();
@@ -522,7 +547,7 @@ public partial class DailyAssignment : Form {
             _unavailable.CurrentAssignment = _unavailable.PrimaryLocation;
         }
         _allTeams = new(_teams);
-        if (!IsReadOnly){
+        if (!IsReadOnly) {
             foreach (var team in _allTeams.OrderBy(t => t.TeamName)) {
                 ToolStripMenuItem teamItem = new() {
                     Text = team.TeamName,
@@ -711,7 +736,6 @@ public partial class DailyAssignment : Form {
                         Controls.Remove(teamLead.Label);
                     }
                     teamLead.GenerateCenteredLabelTemplate(centerX, currentY, slotColor);
-                    //CHECK FOR METHOD NON NULL ATTRIBUTE TODO
                     lastLabelLoc = teamLead.Label.Location;
                     Controls.Add(teamLead.Label);
                     _labels.Add(teamLead.Label);
@@ -945,10 +969,10 @@ public partial class DailyAssignment : Form {
     private void ReassignToTeam(Person person, Team newTeam) {
         Team? currentTeam = person.Team;
         if (!person.Skills.Any(ps => newTeam.Slots.Select(ts => (Skill)ts).Contains(ps)))
-            return; 
+            return;
         // newTeam is a special team
-        if (newTeam.Equals(_float) || newTeam.Equals(_unavailable)) { 
-            if (currentTeam is not null && currentTeam.TeamLead is not null && currentTeam.TeamLead == person){
+        if (newTeam.Equals(_float) || newTeam.Equals(_unavailable)) {
+            if (currentTeam is not null && currentTeam.TeamLead is not null && currentTeam.TeamLead == person) {
                 for (int i = 0; i < currentTeam.Slots.Count; i++) {
                     var slot = currentTeam.Slots[i];
                     for (int j = 0; j < slot.AssignedToSlot; j++) {
@@ -985,15 +1009,15 @@ public partial class DailyAssignment : Form {
                     ResumeLayout();
                 }
             }
-            return; 
+            return;
         }
         //newTeam is defunct
         if (_defunctTeams.Contains(newTeam)) {
             //newTeam's default location is occupied or null
-            if (newTeam.PrimaryLocation is null || _teams.Select(t => t.CurrentAssignment).Contains(newTeam.PrimaryLocation)) { 
-                List<Location> locations = _data.GetLocCollection().Select(c => c.Value).ToList();
+            if (newTeam.PrimaryLocation is null || _teams.Select(t => t.CurrentAssignment).Contains(newTeam.PrimaryLocation)) {
+                List<Location> locations = _data.GetLocCollection().Select(c => c.Value).Where(l => l.Clinical == newTeam.Clinical).ToList();
                 // no valid location for new team
-                if (!locations.Any(l => _teams.Select(t => t.CurrentAssignment).Contains(l))) { 
+                if (!locations.Any(l => _teams.Select(t => t.CurrentAssignment).Contains(l))) {
                     MessageBox.Show("There are no vacant locations available to instantiate this team!");
                     return;
                 }
@@ -1068,5 +1092,52 @@ public partial class DailyAssignment : Form {
             CreateLabels(currentTeam);
         }
         ResumeLayout();
+    }
+
+    private void ExportPDFToolStripMenuItem_Click(object sender, EventArgs e) {
+        Cursor.Current = Cursors.WaitCursor;
+        EditMenu.Visible = false;
+        Refresh();
+        using Bitmap screenshot = CaptureFormClientArea();
+        using SaveFileDialog saveFileDialog = new SaveFileDialog() {
+            Filter = "PDF (*.pdf)|*.pdf",
+            CheckWriteAccess = true
+        };
+        var result = saveFileDialog.ShowDialog();
+        if (result != DialogResult.OK)
+            return;
+        string target = saveFileDialog.FileName;
+        ConvertImageToPdf(screenshot, target, PageSize.LETTER, 0.5f);
+        Cursor.Current = Cursors.Default;
+        EditMenu.Visible = true;
+        Refresh();
+    }
+    private Bitmap CaptureFormClientArea() {
+        Bitmap screenshot = new(ClientSize.Width, ClientSize.Height);
+        using Graphics g = Graphics.FromImage(screenshot);
+        Point clientOffset = PointToScreen(Point.Empty);
+        g.CopyFromScreen(clientOffset.X, clientOffset.Y, 0, 0, ClientSize);
+        return screenshot;
+    }
+    private void ConvertImageToPdf(Bitmap image, string outputFullPath, PageSize pageSize, float marginInInches) {
+        float marginInPoints = marginInInches * 72;
+        pageSize = pageSize.Rotate();
+        using MemoryStream imageStream = new();
+        image.Save(imageStream, ImageFormat.Png);
+        imageStream.Position = 0;
+        using PdfWriter writer = new(outputFullPath);
+        using PdfDocument doc = new(writer);
+        doc.SetDefaultPageSize(new PageSize(pageSize.GetWidth(), pageSize.GetHeight()));
+        Document document = new(doc);
+        document.SetMargins(marginInPoints, marginInPoints, marginInPoints, marginInPoints);
+        ImageData imageData = ImageDataFactory.Create(imageStream.ToArray());
+        iText.Layout.Element.Image pdfImage = new(imageData);
+        float availableWidth = pageSize.GetWidth() - (2 * marginInPoints);
+        float availableHeight = pageSize.GetHeight() - (2 * marginInPoints);
+        pdfImage.ScaleToFit(availableWidth, availableHeight);
+        pdfImage.SetHorizontalAlignment(iText.Layout.Properties.HorizontalAlignment.CENTER);
+
+        document.Add(pdfImage);
+        document.Close();
     }
 }

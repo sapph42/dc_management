@@ -37,6 +37,7 @@
             label3 = new Label();
             TeamNameTextbox = new TextBox();
             label2 = new Label();
+            ClinicalCheckbox = new CheckBox();
             groupBox1.SuspendLayout();
             SuspendLayout();
             // 
@@ -71,6 +72,7 @@
             // 
             // groupBox1
             // 
+            groupBox1.Controls.Add(ClinicalCheckbox);
             groupBox1.Controls.Add(SlotButton);
             groupBox1.Controls.Add(SaveButton);
             groupBox1.Controls.Add(LocationCombobox);
@@ -127,7 +129,7 @@
             // ActiveCheckbox
             // 
             ActiveCheckbox.AutoSize = true;
-            ActiveCheckbox.Location = new Point(301, 90);
+            ActiveCheckbox.Location = new Point(301, 78);
             ActiveCheckbox.Name = "ActiveCheckbox";
             ActiveCheckbox.Size = new Size(59, 19);
             ActiveCheckbox.TabIndex = 11;
@@ -178,6 +180,16 @@
             label2.TabIndex = 0;
             label2.Text = "Team Name";
             // 
+            // ClinicalCheckbox
+            // 
+            ClinicalCheckbox.AutoSize = true;
+            ClinicalCheckbox.Location = new Point(301, 134);
+            ClinicalCheckbox.Name = "ClinicalCheckbox";
+            ClinicalCheckbox.Size = new Size(65, 19);
+            ClinicalCheckbox.TabIndex = 16;
+            ClinicalCheckbox.Text = "Clinical";
+            ClinicalCheckbox.UseVisualStyleBackColor = true;
+            // 
             // TeamManagement
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -212,5 +224,6 @@
         private CheckBox FillCheckbox;
         private Button SaveButton;
         private Button SlotButton;
+        private CheckBox ClinicalCheckbox;
     }
 }

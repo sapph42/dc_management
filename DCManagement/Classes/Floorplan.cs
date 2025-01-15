@@ -97,11 +97,15 @@ public class Floorplan {
             return null;
         Bitmap image = new(BaseImage);
         using Graphics graphics = Graphics.FromImage(image);
-        using Pen borderPen = new(Color.Black);
+        using Pen borderPen = new(Color.Cyan);
         using Pen textPen = new(Color.Black);
         using Brush textBrush = textPen.Brush;
-        borderPen.Width = 1f;
+        borderPen.Width = 2f;
         foreach (var location in usingCollection.Values) {
+            if (location.Clinical)
+                borderPen.Color = Color.OliveDrab;
+            else
+                borderPen.Color = Color.Cyan;
             graphics.DrawRectangle(borderPen, location.Rect);
             graphics.DrawString(location.Name, new Font("Arial", 10f, FontStyle.Bold), textBrush, location.UpperLeft);
         }

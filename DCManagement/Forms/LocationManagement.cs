@@ -2,7 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 
-namespace DCManagement.Forms; 
+namespace DCManagement.Forms;
 public partial class LocationManagement : Form {
     private enum ActionState {
         None,
@@ -10,7 +10,8 @@ public partial class LocationManagement : Form {
         Drawing,
         NamingNew,
         Renaming,
-        Resizing
+        Resizing,
+        ClinicalToggle
     }
     private enum ActionAllowed {
         None,
@@ -65,6 +66,7 @@ public partial class LocationManagement : Form {
             case ActionState.Moving:
             case ActionState.Renaming:
             case ActionState.Resizing:
+            case ActionState.ClinicalToggle:
                 if (_lastClickLocation is null)
                     return;
                 _data.UpdateLocation(_lastClickLocation);
@@ -239,6 +241,7 @@ public partial class LocationManagement : Form {
                     }
                 };
                 _pendingLocation = new(rect);
+                _pendingLocation.Clinical = true;
                 if (_floorplan.Locations.IntersectsWithAny(_pendingLocation)) {
                     _pendingLocation = null;
                     _actionState = ActionState.None;
@@ -309,10 +312,10 @@ public partial class LocationManagement : Form {
                 if (
                             rect.Top < 0 ||
                             rect.Left < 0 ||
-                            rect.Right > BackgroundImage.Width || 
-                            rect.Bottom > BackgroundImage.Height || 
+                            rect.Right > BackgroundImage.Width ||
+                            rect.Bottom > BackgroundImage.Height ||
                         (
-                            _floorplan.Locations.IntersectsWithAny(rect) && 
+                            _floorplan.Locations.IntersectsWithAny(rect) &&
                             _floorplan.Locations.IntersectWithByID(rect) != _lastClickLocation.LocID
                         )
                     ) {
@@ -347,7 +350,7 @@ public partial class LocationManagement : Form {
         if (BackgroundImage is null)
             return;
         Point adjustedCoord = _floorplan.TransformCoordinatesInv(e.Location);
-        if (_actionState == ActionState.None && (_actionAllowed == ActionAllowed.Resizing || _actionAllowed == ActionAllowed.None)) { 
+        if (_actionState == ActionState.None && (_actionAllowed == ActionAllowed.Resizing || _actionAllowed == ActionAllowed.None)) {
             _edge = _floorplan.IsPointOnPerimeter(adjustedCoord);
             switch (_edge) {
                 case Floorplan.Edge.None:
@@ -528,6 +531,10 @@ public partial class LocationManagement : Form {
             e.Cancel = true;
             return;
         }
+        if (loc.Clinical)
+            ToggleClinicalToolStripMenuItem.Text = "Mark As Admin";
+        else
+            ToggleClinicalToolStripMenuItem.Text = "Mark As Clinical";
         _lastClickLocation = loc;
     }
     private void DeleteLocationToolStripMenuItem_Click(object sender, EventArgs e) {
@@ -621,4 +628,14 @@ public partial class LocationManagement : Form {
         LoadFloorplan();
     }
     #endregion
+
+    private void ToggleClinicalToolStripMenuItem_Click(object sender, EventArgs e) {
+        if (_lastClickLocation is null)
+            return;
+        _pendingLocation = null;
+        CancelActionStates(true);
+        CancelPendingActionToolStripMenuItem.Visible = true;
+        _lastClickLocation.Clinical = !_lastClickLocation.Clinical;
+        _actionState = ActionState.ClinicalToggle;
+    }
 }

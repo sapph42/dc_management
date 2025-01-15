@@ -155,14 +155,14 @@ public class DataManagement {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location WHERE LocID=@LocID";
+        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH, Clinical FROM Location WHERE LocID=@LocID";
         cmd.Parameters.Add("@LocID", SqlDbType.Int);
         cmd.Parameters["@LocID"].Value = LocationID;
         cmd.Connection = conn;
         conn.Open();
         Location loc = new();
         using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
+        object[] row = new object[7];
         while (reader.Read()) {
             _ = reader.GetValues(row);
             loc = new(row);
@@ -174,14 +174,14 @@ public class DataManagement {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location WHERE LocID=@LocID";
+        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH, Clinical FROM Location WHERE LocID=@LocID";
         cmd.Parameters.Add("@LocID", SqliteType.Integer);
         cmd.Parameters["@LocID"].Value = LocationID;
         cmd.Connection = conn;
         conn.Open();
         Location loc = new();
         using SqliteDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
+        object[] row = new object[7];
         while (reader.Read()) {
             _ = reader.GetValues(row);
             loc = new(row);
@@ -209,8 +209,8 @@ public class DataManagement {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"INSERT INTO Location (Name, LocX, LocY, SizeW, SizeH)
-                  VALUES (@Name, @LocX, @LocY, @SizeW, @SizeH);
+        cmd.CommandText = @"INSERT INTO Location (Name, LocX, LocY, SizeW, SizeH, Clinical)
+                  VALUES (@Name, @LocX, @LocY, @SizeW, @SizeH, @Clinical);
                   SELECT last_insert_rowid();";
         cmd.Parameters.AddRange(GetLocParameters_Sqlite(Location));
         cmd.Connection = conn;
@@ -237,7 +237,7 @@ public class DataManagement {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = "UPDATE Location SET [Name]=@Name, LocX=@LocX, LocY=@LocY, SizeW=@SizeW, SizeH=@SizeH WHERE LocID=@ID";
+        cmd.CommandText = "UPDATE Location SET [Name]=@Name, LocX=@LocX, LocY=@LocY, SizeW=@SizeW, SizeH=@SizeH, Clinical=@Clinical WHERE LocID=@ID";
         cmd.Parameters.AddRange(GetLocParameters_Sqlite(true, Location));
         cmd.Connection = conn;
         conn.Open();
@@ -308,11 +308,16 @@ public class DataManagement {
                 SqlDbType = SqlDbType.Int,
                 Value = loc.Size.Width
             },
+            new SqlParameter() {
+                ParameterName = "@Clinical",
+                SqlDbType = SqlDbType.Bit,
+                Value = loc.Clinical
+            },
         ];
         return coll;
     }
     public static SqliteParameter[] GetLocParameters_Sqlite(Location loc) {
-        var coll = new SqliteParameter[5];
+        var coll = new SqliteParameter[6];
         coll[0] = new SqliteParameter() {
             ParameterName = "@Name",
             SqliteType = SqliteType.Text,
@@ -337,6 +342,11 @@ public class DataManagement {
             ParameterName = "@SizeW",
             SqliteType = SqliteType.Integer,
             Value = loc.Size.Width
+        };
+        coll[5] = new SqliteParameter() {
+            ParameterName = "@Clinical",
+            SqliteType = SqliteType.Integer,
+            Value = loc.Clinical ? 1 : 0
         };
         return coll;
     }
@@ -376,13 +386,13 @@ public class DataManagement {
         using SqlConnection conn = new(_sqlConnectionString); ;
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location";
+        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH, Clinical FROM Location";
         cmd.Connection = conn;
         conn.Open();
         LocationCollection loc = [];
         loc = [];
         using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
+        object[] row = new object[7];
         while (reader.Read()) {
             _ = reader.GetValues(row);
             loc.Add(new Location(row));
@@ -394,13 +404,13 @@ public class DataManagement {
         using SqliteConnection conn = new(_sqlConnectionString); ;
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH FROM Location";
+        cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH, Clinical FROM Location";
         cmd.Connection = conn;
         conn.Open();
         LocationCollection loc = [];
         loc = [];
         using SqliteDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
+        object[] row = new object[7];
         while (reader.Read()) {
             _ = reader.GetValues(row);
             loc.Add(new Location(row));
@@ -857,13 +867,13 @@ public class DataManagement {
     }
     #endregion
     #region Team Methods
-    public int AddNewTeam(string Name, int TeamLeadID, int LocID, bool Fill, bool Active) {
+    public int AddNewTeam(string Name, int TeamLeadID, int LocID, bool Fill, bool Active, bool Clinical) {
         if (DataSource == DataSource.SQL)
-            return AddNewTeam_Sql(Name, TeamLeadID, LocID, Fill, Active);
+            return AddNewTeam_Sql(Name, TeamLeadID, LocID, Fill, Active, Clinical);
         else
-            return AddNewTeam_Sqlite(Name, TeamLeadID, LocID, Fill, Active);
+            return AddNewTeam_Sqlite(Name, TeamLeadID, LocID, Fill, Active, Clinical);
     }
-    private int AddNewTeam_Sql(string Name, int TeamLeadID, int LocID, bool Fill, bool Active) {
+    private int AddNewTeam_Sql(string Name, int TeamLeadID, int LocID, bool Fill, bool Active, bool Clinical) {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
@@ -873,32 +883,36 @@ public class DataManagement {
         cmd.Parameters.Add("@LocID", SqlDbType.Int);
         cmd.Parameters.Add("@Fill", SqlDbType.Bit);
         cmd.Parameters.Add("@Active", SqlDbType.Bit);
+        cmd.Parameters.Add("@Clinical", SqlDbType.Bit);
         cmd.Parameters["@Name"].Value = Name;
         cmd.Parameters["@Lead"].Value = TeamLeadID;
         cmd.Parameters["@LocID"].Value = LocID;
         cmd.Parameters["@Fill"].Value = Fill;
         cmd.Parameters["@Active"].Value = Active;
+        cmd.Parameters["@Clinical"].Value = Clinical;
         cmd.Connection = conn;
         conn.Open();
         return (int)cmd.ExecuteScalar();
     }
-    private int AddNewTeam_Sqlite(string Name, int TeamLeadID, int LocID, bool Fill, bool Active) {
+    private int AddNewTeam_Sqlite(string Name, int TeamLeadID, int LocID, bool Fill, bool Active, bool Clinical) {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = "INSERT INTO Team(TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active) " +
-            "VALUES (@Name, @AdjustedLead, @AdjustedLoc, @Fill, @Active);" +
+        cmd.CommandText = "INSERT INTO Team(TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active, Clinical) " +
+            "VALUES (@Name, @AdjustedLead, @AdjustedLoc, @Fill, @Active, @Clinical);" +
             "SELECT last_insert_rowid();";
         cmd.Parameters.Add("@Name", SqliteType.Text);
         cmd.Parameters.Add("@Lead", SqliteType.Integer);
         cmd.Parameters.Add("@LocID", SqliteType.Integer);
         cmd.Parameters.Add("@Fill", SqliteType.Integer);
         cmd.Parameters.Add("@Active", SqliteType.Integer);
+        cmd.Parameters.Add("@Clinical", SqliteType.Integer);
         cmd.Parameters["@Name"].Value = Name;
         cmd.Parameters["@Lead"].Value = TeamLeadID != 1 ? TeamLeadID : DBNull.Value;
         cmd.Parameters["@LocID"].Value = LocID != 1 ? LocID : DBNull.Value; ;
         cmd.Parameters["@Fill"].Value = Fill ? 1 : 0;
         cmd.Parameters["@Active"].Value = Active ? 1 : 0;
+        cmd.Parameters["@Clinical"].Value = Clinical ? 1 : 0;
         cmd.Connection = conn;
         conn.Open();
         return (int)cmd.ExecuteScalar()!;
@@ -913,13 +927,13 @@ public class DataManagement {
         using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = @"SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active FROM dbo.GetTeamInfo(@TeamID)";
+        cmd.CommandText = @"SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active, Clinical FROM dbo.GetTeamInfo(@TeamID)";
         cmd.Parameters.Add("@TeamID", SqlDbType.Int);
         cmd.Parameters["@TeamID"].Value = TeamID;
         cmd.Connection = conn;
         conn.Open();
         using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
+        object[] row = new object[7];
         Team team;
         while (reader.Read()) {
             _ = reader.GetValues(row);
@@ -933,7 +947,7 @@ public class DataManagement {
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = "SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active " +
+        cmd.CommandText = "SELECT TeamID, TeamName, TeamLead, PrimaryLocation, FillIfNoLead, Active, Clinical " +
             "FROM Team " +
             "WHERE TeamID=@TeamID";
         cmd.Parameters.Add("@TeamID", SqliteType.Integer);
@@ -941,7 +955,7 @@ public class DataManagement {
         cmd.Connection = conn;
         conn.Open();
         using SqliteDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
+        object[] row = new object[7];
         Team team;
         while (reader.Read()) {
             _ = reader.GetValues(row);
@@ -964,11 +978,11 @@ public class DataManagement {
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "SELECT TeamID, " + 
             (ShowActive ? "IIF(Active=1,TeamName,TeamName+'*') AS TeamName, " : "TeamName, ") + 
-            "TeamLead, PrimaryLocation, FillIfNoLead, Active FROM Team WHERE Active=1";
+            "TeamLead, PrimaryLocation, FillIfNoLead, Active, Clinical FROM Team WHERE Active=1";
         cmd.Connection = conn;
         conn.Open();
         using SqlDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
+        object[] row = new object[7];
         while (reader.Read()) {
             _ = reader.GetValues(row);
             teams.Add(new Team(row));
@@ -983,11 +997,11 @@ public class DataManagement {
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "SELECT TeamID, " +
             (ShowActive ? "IIF(Active=1,TeamName,TeamName+'*') AS TeamName, " : "TeamName, ") +
-            "TeamLead, PrimaryLocation, FillIfNoLead, Active FROM Team WHERE Active=1";
+            "TeamLead, PrimaryLocation, FillIfNoLead, Active, Clinical FROM Team WHERE Active=1";
         cmd.Connection = conn;
         conn.Open();
         using SqliteDataReader reader = cmd.ExecuteReader();
-        object[] row = new object[6];
+        object[] row = new object[7];
         while (reader.Read()) {
             _ = reader.GetValues(row);
             teams.Add(new Team(row));
@@ -1028,6 +1042,11 @@ public class DataManagement {
                 SqlDbType = SqlDbType.Bit,
                 Value = team.Active
             },
+            new SqlParameter() {
+                ParameterName = "@Clinical",
+                SqlDbType = SqlDbType.Bit,
+                Value = team.Clinical
+            }
         ];
         return coll;
     }
@@ -1064,6 +1083,11 @@ public class DataManagement {
                 SqliteType = SqliteType.Integer,
                 Value = team.Active ? 1 : 0
             },
+            new SqliteParameter() {
+                ParameterName = "@Clinical",
+                SqliteType = SqliteType.Integer,
+                Value = team.Clinical ? 1 : 0
+            }
         ];
         return coll;
     }
@@ -1088,7 +1112,7 @@ public class DataManagement {
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "UPDATE Team " +
-            "SET TeamName=@Name, TeamLead=@AdjustedLead, PrimaryLocation=@AdjustedLoc, FillIfNoLead=@Fill, Active=@Active" +
+            "SET TeamName=@Name, TeamLead=@AdjustedLead, PrimaryLocation=@AdjustedLoc, FillIfNoLead=@Fill, Active=@Active, Clinical=@Clinical" +
             "WHERE TeamID=@TeamID";
         cmd.Parameters.AddRange(GetTeamParameters_Sql(Team));
         cmd.Connection = conn;
@@ -1333,15 +1357,15 @@ public class DataManagement {
         ref PersonCollection People,
         ref AvailablePeople AvailablePeople) {
         if (DataSource == DataSource.SQL)
-            LoadFinalizedAssignments_Sql(Teams, DefunctTeams, Floorplan, People, AvailablePeople);
+            LoadFinalizedAssignments_Sql(ref Teams, ref DefunctTeams, ref Floorplan, ref People, ref AvailablePeople);
         else
-            LoadFinalizedAssignments_Sqlite(Teams, DefunctTeams, Floorplan, People, AvailablePeople);
+            LoadFinalizedAssignments_Sqlite(ref Teams, ref DefunctTeams, ref Floorplan, ref People, ref AvailablePeople);
     }
-    private void LoadFinalizedAssignments_Sql(List<Team> Teams,
-        List<Team> DefunctTeams,
-        Floorplan Floorplan,
-        PersonCollection People,
-        AvailablePeople AvailablePeople) {
+    private void LoadFinalizedAssignments_Sql(ref List<Team> Teams,
+        ref List<Team> DefunctTeams,
+        ref Floorplan Floorplan,
+        ref PersonCollection People,
+        ref AvailablePeople AvailablePeople) {
 
         LocationCollection Locations = Floorplan.Locations;
         using SqlConnection conn = new(_sqlConnectionString);
@@ -1364,22 +1388,20 @@ public class DataManagement {
 
         var teamsInUse = teamData.AsEnumerable().Select(row => row.Field<int>("TeamID")).Cast<int>().ToList();
         var teamsInUseByPerson = personData.AsEnumerable().Select(row => row.Field<int>("TeamID")).Cast<int>().ToList();
-        Teams
-            .Where(t => !teamsInUse
-                            .Contains((int)t.TeamID!))
-            .ToList()
-            .ForEach(t => {
-                Teams.Remove(t);
-                DefunctTeams.Add(t);
-            });
-        Teams
-            .Where(t => !teamsInUseByPerson
-                            .Contains((int)t.TeamID!))
-            .ToList()
-            .ForEach(t => {
-                Teams.Remove(t);
-                DefunctTeams.Add(t);
-            });
+        List<Team> moveToDefunct = [];
+        foreach (var team in Teams) {
+            if (!teamsInUse.Contains((int)team.TeamID!))
+                moveToDefunct.Add(team);
+        }
+        foreach (var team in Teams) {
+            if (!teamsInUseByPerson.Contains((int)team.TeamID!) && !moveToDefunct.Contains(team))
+                moveToDefunct.Add(team);
+        }
+        foreach (var team in moveToDefunct) {
+            Teams.Remove(team);
+            DefunctTeams.Add(team);
+        }
+
         Dictionary<int, int> teamsToLocs = [];
         teamData.Rows
                 .Cast<DataRow>()
@@ -1397,16 +1419,13 @@ public class DataManagement {
             team.Slots.ForEach(s => { s.UnassignAll(); });
         }
 
-        personData.Rows
-                  .Cast<DataRow>()
-                  .ToList()
-                  .ForEach(r => {
-                      Team team = Teams.First(t => t.TeamID == (int)r[1]);
-                      int personID = (int)r[0];
-                      People.AssignTeam(personID, team);
-                      team.AssignPerson(People[personID], (int)r[2], null, true);
-                      People[personID].AssignmentLocked = true;
-        });
+        foreach (DataRow r in personData.Rows) {
+            Team team = Teams.First(t => t.TeamID == (int)r[1]);
+            int personID = (int)r[0];
+            People.AssignTeam(personID, team);
+            team.AssignPerson(People[personID], (int)r[2], null, true);
+            People[personID].AssignmentLocked = true;
+        }
 
         AvailablePeople = new();
         foreach (int personID in GetFinalizedFloats_Sql()) {
@@ -1418,11 +1437,11 @@ public class DataManagement {
             }
         }
     }
-    private void LoadFinalizedAssignments_Sqlite(List<Team> Teams,
-    List<Team> DefunctTeams,
-    Floorplan Floorplan,
-    PersonCollection People,
-    AvailablePeople AvailablePeople) {
+    private void LoadFinalizedAssignments_Sqlite(ref List<Team> Teams,
+    ref List<Team> DefunctTeams,
+    ref Floorplan Floorplan,
+    ref PersonCollection People,
+    ref AvailablePeople AvailablePeople) {
         LocationCollection Locations = Floorplan.Locations;
         using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand teamCmd = new();
@@ -1445,34 +1464,54 @@ public class DataManagement {
         personData.Columns[1].ColumnName = "TeamID";
         personData.Columns[2].ColumnName = "SlotID";
         var teamsInUse = teamData.AsEnumerable().Select(row => row.Field<int>("TeamID")).Cast<int>().ToList();
-        Teams
-            .Where(t => !teamsInUse
-                            .Contains((int)t.TeamID!))
-            .ToList()
-            .ForEach(t => {
-                Teams.Remove(t);
-                DefunctTeams.Add(t);
-            });
-        foreach (DataRow row in teamData.Rows) {
-            Team thisTeam = Teams.Where(t => t.TeamID == (int)row["TeamID"]).First();
-            Location assignedLocation = Locations[(int)row["LocID"]];
-            thisTeam.CurrentAssignment = assignedLocation;
+        var teamsInUseByPerson = personData.AsEnumerable().Select(row => row.Field<int>("TeamID")).Cast<int>().ToList();
+        List<Team> moveToDefunct = [];
+        foreach (var team in Teams) {
+            if (!teamsInUse.Contains((int)team.TeamID!))
+                moveToDefunct.Add(team);
+        }
+        foreach (var team in Teams) {
+            if (!teamsInUseByPerson.Contains((int)team.TeamID!) && !moveToDefunct.Contains(team))
+                moveToDefunct.Add(team);
+        }
+        foreach (var team in moveToDefunct) {
+            Teams.Remove(team);
+            DefunctTeams.Add(team);
         }
 
-        var assignedPeople = personData.AsEnumerable().Select(row => row.Field<int>("PersonID")).Cast<int>().ToList();
-        People
-            .Where(p => !assignedPeople.Contains(p.Key))
-            .ToList()
-            .ForEach(p => {
-                AvailablePeople.People.Add(p.Value);
-            });
-        foreach (DataRow row in personData.Rows) {
-            Person thisPerson = People[(int)row["PersonID"]];
-            Team assignedTeam = Teams.Where(t => t.TeamID == (int)row["TeamID"]).First();
-            Slot assignedSlot = assignedTeam.Slots.Where(s => s.SlotID == (int)row["SlotID"]).First();
-            thisPerson.Team = assignedTeam;
-            assignedSlot.AssignToSlot(thisPerson);
-            thisPerson.AssignmentLocked = true;
+        Dictionary<int, int> teamsToLocs = [];
+        teamData.Rows
+                .Cast<DataRow>()
+                .ToList()
+                .ForEach(r =>
+                    teamsToLocs.Add((int)r[0], (int)r[1])
+                );
+        Teams.ForEach(t => {
+            t.CurrentAssignment = Locations[teamsToLocs[(int)t.TeamID!]];
+            t.Slots.ForEach(s => s.UnassignAll());
+        });
+        foreach (Team team in DefunctTeams) {
+            team.CurrentAssignment = null;
+            team.TeamLead = null;
+            team.Slots.ForEach(s => { s.UnassignAll(); });
+        }
+
+        foreach (DataRow r in personData.Rows) {
+            Team team = Teams.First(t => t.TeamID == (int)r[1]);
+            int personID = (int)r[0];
+            People.AssignTeam(personID, team);
+            team.AssignPerson(People[personID], (int)r[2], null, true);
+            People[personID].AssignmentLocked = true;
+        }
+
+        AvailablePeople = new();
+        foreach (int personID in GetFinalizedFloats_Sql()) {
+            if (People.ContainsKey(personID))
+                AvailablePeople.Add(People[personID]);
+            else {
+                Person floater = GetPerson_Sql(personID);
+                AvailablePeople.Add(floater);
+            }
         }
     }
     private List<int> GetFinalizedFloats() {

@@ -36,6 +36,7 @@
             RenameLocationToolStripMenuItem = new ToolStripMenuItem();
             DeleteLocationToolStripMenuItem = new ToolStripMenuItem();
             MoveLocationToolStripMenuItem = new ToolStripMenuItem();
+            ToggleClinicalToolStripMenuItem = new ToolStripMenuItem();
             AlertMessageTimer = new System.Windows.Forms.Timer(components);
             NameEditTextbox = new TextBox();
             EditMenu.SuspendLayout();
@@ -99,31 +100,38 @@
             // 
             // ContextMenu
             // 
-            ContextMenu.Items.AddRange(new ToolStripItem[] { RenameLocationToolStripMenuItem, DeleteLocationToolStripMenuItem, MoveLocationToolStripMenuItem });
+            ContextMenu.Items.AddRange(new ToolStripItem[] { RenameLocationToolStripMenuItem, DeleteLocationToolStripMenuItem, MoveLocationToolStripMenuItem, ToggleClinicalToolStripMenuItem });
             ContextMenu.Name = "ContextMenu";
-            ContextMenu.Size = new Size(167, 70);
+            ContextMenu.Size = new Size(181, 114);
             ContextMenu.Opening += ContextMenu_Opening;
             // 
             // RenameLocationToolStripMenuItem
             // 
             RenameLocationToolStripMenuItem.Name = "RenameLocationToolStripMenuItem";
-            RenameLocationToolStripMenuItem.Size = new Size(166, 22);
+            RenameLocationToolStripMenuItem.Size = new Size(180, 22);
             RenameLocationToolStripMenuItem.Text = "Rename Location";
             RenameLocationToolStripMenuItem.Click += RenameLocationToolStripMenuItem_Click;
             // 
             // DeleteLocationToolStripMenuItem
             // 
             DeleteLocationToolStripMenuItem.Name = "DeleteLocationToolStripMenuItem";
-            DeleteLocationToolStripMenuItem.Size = new Size(166, 22);
+            DeleteLocationToolStripMenuItem.Size = new Size(180, 22);
             DeleteLocationToolStripMenuItem.Text = "Delete Location";
             DeleteLocationToolStripMenuItem.Click += DeleteLocationToolStripMenuItem_Click;
             // 
             // MoveLocationToolStripMenuItem
             // 
             MoveLocationToolStripMenuItem.Name = "MoveLocationToolStripMenuItem";
-            MoveLocationToolStripMenuItem.Size = new Size(166, 22);
+            MoveLocationToolStripMenuItem.Size = new Size(180, 22);
             MoveLocationToolStripMenuItem.Text = "Move Location";
             MoveLocationToolStripMenuItem.Click += MoveLocationToolStripMenuItem_Click;
+            // 
+            // ToggleClinicalToolStripMenuItem
+            // 
+            ToggleClinicalToolStripMenuItem.Name = "ToggleClinicalToolStripMenuItem";
+            ToggleClinicalToolStripMenuItem.Size = new Size(180, 22);
+            ToggleClinicalToolStripMenuItem.Text = "Mark As Clinical";
+            ToggleClinicalToolStripMenuItem.Click += ToggleClinicalToolStripMenuItem_Click;
             // 
             // AlertMessageTimer
             // 
@@ -179,5 +187,6 @@
         private System.Windows.Forms.Timer AlertMessageTimer;
         private ToolStripMenuItem CancelPendingActionToolStripMenuItem;
         private TextBox NameEditTextbox;
+        private ToolStripMenuItem ToggleClinicalToolStripMenuItem;
     }
 }
