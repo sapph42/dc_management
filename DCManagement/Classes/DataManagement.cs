@@ -3,6 +3,7 @@ using System.Data;
 using DCManagement.Resources;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
+using static Org.BouncyCastle.Crypto.Fips.FipsDsa.DomainParametersValidator;
 
 namespace DCManagement.Classes;
 public enum DataSource {
@@ -1847,6 +1848,210 @@ public class DataManagement {
             sqliteCmd.Parameters.Clear();
         }
         sqliteTrans.Commit();
+    }
+    #endregion
+    #region Person Unavailability
+    public List<Unavailability> GetUnavailableData(Person person) {
+        if (DataSource == DataSource.SQL)
+            return GetUnavailableData_Sql(person);
+        else
+            return GetUnavailableData_Sqlite(person);
+    }
+    private List<Unavailability> GetUnavailableData_Sql(Person person) {
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
+        cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.CommandText = "dbo.GetUnavailableDates";
+        cmd.Connection = conn;
+        conn.Open();
+        List<Unavailability> unavailabilities = [];
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) {
+            unavailabilities.Add(
+                new Unavailability() {
+                    RecordID = reader.GetInt32(0),
+                    StartDate = reader.GetDateTime(1),
+                    EndDate = reader.GetDateTime(2)
+                }
+            );
+        }
+        return unavailabilities;
+    }
+    private List<Unavailability> GetUnavailableData_Sqlite(Person person) {
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.Parameters.Add("@PersonID", SqliteType.Integer);
+        cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.CommandText = "SELECT RecordID, StartDate, EndDate FROM Unavailability WHERE PersonID=@PersonID";
+        cmd.Connection = conn;
+        conn.Open();
+        List<Unavailability> unavailabilities = [];
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) {
+            unavailabilities.Add(
+                new Unavailability() {
+                    RecordID = reader.GetInt32(0),
+                    StartDate = reader.GetDateTime(1),
+                    EndDate = reader.GetDateTime(2)
+                }
+            );
+        }
+        return unavailabilities;
+    }
+    public Unavailability SetUnavailabiliy(Person person, Unavailability unavailability) {
+        if (DataSource == DataSource.SQL)
+            return SetUnavailability_Sql(person, unavailability);
+        else
+            return SetUnavailability_Sqlite(person, unavailability);
+    }
+    public Unavailability SetUnavailability(Person person, DateTime startDate, DateTime endDate) {
+        if (DataSource == DataSource.SQL)
+            return SetUnavailability_Sql(person, startDate, endDate);
+        else
+            return SetUnavailability_Sqlite(person, startDate, endDate);
+    }
+    private Unavailability SetUnavailability_Sql(Person person, Unavailability unavailability) {
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@RecordID", SqlDbType.Int);
+        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
+        cmd.Parameters.Add("@StartDate", SqlDbType.DateTime2);
+        cmd.Parameters.Add("@EndDate", SqlDbType.DateTime2);
+        cmd.Parameters["@RecordID"].Value = unavailability.RecordID;
+        cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.Parameters["@StartDate"].Value = unavailability.StartDate;
+        cmd.Parameters["@EndDate"].Value = unavailability.EndDate;
+        cmd.CommandText = "dbo.SetUnavailableDates";
+        cmd.Connection = conn;
+        conn.Open();
+        _ = cmd.ExecuteNonQuery();
+        return unavailability;
+    }
+    private Unavailability SetUnavailability_Sqlite(Person person, Unavailability unavailability) {
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.Parameters.Add("@RecordID", SqliteType.Integer);
+        cmd.Parameters.Add("@PersonID", SqliteType.Integer);
+        cmd.Parameters.Add("@StartDate", SqliteType.Text);
+        cmd.Parameters.Add("@EndDate", SqliteType.Text);
+        cmd.Parameters["@RecordID"].Value = unavailability.RecordID;
+        cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.Parameters["@StartDate"].Value = unavailability.StartDate.ToString("yyyy-MM-dd");
+        cmd.Parameters["@EndDate"].Value = unavailability.EndDate.ToString("yyyy-MM-dd");
+        cmd.CommandText = "UPDATE Unavailability " +
+            "SET PersonID=@PersonID, StartDate=DATE(@StartDate, 'localtime'), EndDate=DATE(@EndDate, 'localtime') " +
+            "WHERE RecordID=@RecordID";
+        cmd.Connection = conn;
+        conn.Open();
+        _ = cmd.ExecuteNonQuery();
+        return unavailability;
+    }
+    private Unavailability SetUnavailability_Sql(Person person, DateTime startDate, DateTime endDate) {
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@RecordID", SqlDbType.Int);
+        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
+        cmd.Parameters.Add("@StartDate", SqlDbType.DateTime2);
+        cmd.Parameters.Add("@EndDate", SqlDbType.DateTime2);
+        cmd.Parameters["@RecordID"].Value = DBNull.Value;
+        cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.Parameters["@StartDate"].Value = startDate;
+        cmd.Parameters["@EndDate"].Value = endDate;
+        cmd.CommandText = "dbo.SetUnavailableDates";
+        cmd.Connection = conn;
+        conn.Open();
+        int recordID = (int)cmd.ExecuteScalar();
+        return new Unavailability() {
+            RecordID = recordID,
+            StartDate = startDate,
+            EndDate = endDate
+        };
+    }
+    private Unavailability SetUnavailability_Sqlite(Person person, DateTime startDate, DateTime endDate) {
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.Parameters.Add("@RecordID", SqliteType.Integer);
+        cmd.Parameters.Add("@PersonID", SqliteType.Integer);
+        cmd.Parameters.Add("@StartDate", SqliteType.Text);
+        cmd.Parameters.Add("@EndDate", SqliteType.Text);
+        cmd.Parameters["@RecordID"].Value = DBNull.Value;
+        cmd.Parameters["@PersonID"].Value = person.PersonID;
+        cmd.Parameters["@StartDate"].Value = startDate.ToString("yyyy-MM-dd");
+        cmd.Parameters["@EndDate"].Value = endDate.ToString("yyyy-MM-dd");
+        cmd.CommandText = "INSERT INTO Unavailability (PersonID, StartDate, EndDate) " +
+            "VALUES (@PersonID, @StartDate, @EndDate);" +
+            "SELECT last_insert_rowid();";
+        cmd.Connection = conn;
+        conn.Open();
+        int recordID = (int)cmd.ExecuteScalar()!;
+        return new Unavailability() {
+            RecordID = recordID,
+            StartDate = startDate,
+            EndDate = endDate
+        };
+    }
+    public void DeleteUnavailability(Unavailability unavailability) {
+        if (DataSource == DataSource.SQL)
+            DeleteUnavailability_Sql(unavailability);
+        else
+            DeleteUnavailability_Sqlite(unavailability);
+    }
+    public void DeleteUnavailability(int RecordID) {
+        if (DataSource == DataSource.SQL)
+            DeleteUnavailability_Sql(RecordID);
+        else
+            DeleteUnavailability_Sqlite(RecordID);
+    }
+    private void DeleteUnavailability_Sql(Unavailability unavailability) {
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@RecordID", SqlDbType.Int);
+        cmd.Parameters["@RecordID"].Value = unavailability.RecordID;
+        cmd.CommandText = "dbo.DeleteUnavailableDates";
+        cmd.Connection = conn;
+        conn.Open();
+        _ = cmd.ExecuteNonQuery();
+    }
+    private void DeleteUnavailability_Sqlite(Unavailability unavailability) {
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@RecordID", SqliteType.Integer);
+        cmd.Parameters["@RecordID"].Value = unavailability.RecordID;
+        cmd.CommandText = "DELETE FROM Unavailability WHERE RecordID=@RecordID";
+        cmd.Connection = conn;
+        conn.Open();
+        _ = cmd.ExecuteNonQuery();
+    }
+    private void DeleteUnavailability_Sql(int RecordID) {
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@RecordID", SqlDbType.Int);
+        cmd.Parameters["@RecordID"].Value = RecordID;
+        cmd.CommandText = "dbo.DeleteUnavailableDates";
+        cmd.Connection = conn;
+        conn.Open();
+        _ = cmd.ExecuteNonQuery();
+    }
+    private void DeleteUnavailability_Sqlite(int RecordID) {
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@RecordID", SqliteType.Integer);
+        cmd.Parameters["@RecordID"].Value = RecordID;
+        cmd.CommandText = "DELETE FROM Unavailability WHERE RecordID=@RecordID";
+        cmd.Connection = conn;
+        conn.Open();
+        _ = cmd.ExecuteNonQuery();
     }
     #endregion
 }

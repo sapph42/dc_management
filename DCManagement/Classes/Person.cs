@@ -6,6 +6,7 @@ public class Person : IEquatable<Person> {
     private Team? _team;
     private bool _active = true;
     private bool _available = true;
+    private DataManagement _data = new(Program.Source);
     public int? PersonID { get; set; }
     public string LastName { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
@@ -27,14 +28,23 @@ public class Person : IEquatable<Person> {
         get => _active; 
         set => _active = value; 
     }
-    public bool Available { 
+    public bool Available {
         get {
-            return _available && _active;
-        } 
-        set => _available = value; 
+            if (Unavailability.Count == 0)
+                return _available;
+            return Unavailability.Any(u => u.StartDate <= DateTime.Today && u.EndDate >= DateTime.Today);
+        }
+        set {
+            if (value)
+                _data.SetPersonAvailable(this);
+            else
+                _data.SetPersonUnavailable(this);
+            _available = value;
+        }
     }
     public string? NameOverride { get; set; }
     public Label Label { get; set; } = new();
+    public List<Unavailability> Unavailability { get; set; } = [];
     public string FullName {
         get {
             if (!string.IsNullOrWhiteSpace(NameOverride))

@@ -9,6 +9,7 @@
 	<ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
 	<Configurations>Debug;Release;Ext</Configurations>
 	<AssemblyVersion>0.9.0.0</AssemblyVersion>
+	<NeutralLanguage>en-US</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>
