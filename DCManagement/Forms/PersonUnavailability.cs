@@ -1,15 +1,11 @@
 ﻿using DCManagement.Classes;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 
 namespace DCManagement.Forms; 
 public partial class PersonUnavailability : Form {
     public required Person Person;
     private List<Unavailability> unavailabilities = [];
-    private DataManagement _data = new(Program.Source);
-    private bool _newRowNeeded = false;
+    private readonly DataManagement _data = new(Program.Source);
     private bool _rowLeaving = false;
     private bool _isRowDirty = false;
     private bool _inserting = false;

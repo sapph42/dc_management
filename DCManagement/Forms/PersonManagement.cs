@@ -1,6 +1,4 @@
 ﻿using DCManagement.Classes;
-using System.Data;
-using System.Text;
 
 namespace DCManagement.Forms;
 public partial class PersonManagement : Form {
@@ -9,7 +7,7 @@ public partial class PersonManagement : Form {
     private Dictionary<int, string> _teams = [];
     private bool _inserting = false;
     private Person? _selectedPerson;
-    private DataManagement _data;
+    private readonly DataManagement _data;
     public PersonManagement() {
         InitializeComponent();
         _data = new(Program.Source);

@@ -28,6 +28,9 @@ partial class PersonUnavailability {
         NameLabel = new Label();
         UnavailabilityDGV = new DataGridView();
         RecordIDColumn = new DataGridViewTextBoxColumn();
+        PersonIDColumn = new DataGridViewTextBoxColumn();
+        StartDateColumn = new DataGridViewDatePickerColumn();
+        EndDateColumn = new DataGridViewDatePickerColumn();
         ((System.ComponentModel.ISupportInitialize)UnavailabilityDGV).BeginInit();
         SuspendLayout();
         // 

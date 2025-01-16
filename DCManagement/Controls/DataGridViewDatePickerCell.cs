@@ -12,6 +12,7 @@ public class DataGridViewDatePickerCell : DataGridViewTextBoxCell {
         Debug.Assert(!ReadOnly);
         base.InitializeEditingControl(rowIndex, initialFormattedValue, dataGridViewCellStyle);
         DatePickerEditingControl? ctl = DataGridView.EditingControl as DatePickerEditingControl;
+        Debug.Assert(ctl is not null);
         ctl.ShowUpDown = false;
         ctl.Format = DateTimePickerFormat.Custom;
         ctl.CustomFormat = "yyyy-MM-dd";
