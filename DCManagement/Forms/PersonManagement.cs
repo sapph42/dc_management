@@ -126,5 +126,12 @@ public partial class PersonManagement : Form {
             _inserting = false;
         }
     }
+    private void UnavilButton_Click(object sender, EventArgs e) {
+        if (_selectedPerson is null) return;
+        PersonUnavailability personUnavailability = new() {
+            Person = _selectedPerson
+        };
+        personUnavailability.ShowDialog();
+    }
     #endregion
 }

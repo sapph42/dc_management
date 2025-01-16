@@ -3,7 +3,6 @@ using iText.IO.Image;
 using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
 using iText.Layout;
-using Microsoft.VisualBasic.Logging;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using Point = System.Drawing.Point;

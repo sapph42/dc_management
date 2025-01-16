@@ -37,6 +37,7 @@
             LastnameTextbox = new TextBox();
             label1 = new Label();
             NewPersonButton = new Button();
+            UnavilButton = new Button();
             groupBox1.SuspendLayout();
             SuspendLayout();
             // 
@@ -52,6 +53,7 @@
             // 
             // groupBox1
             // 
+            groupBox1.Controls.Add(UnavilButton);
             groupBox1.Controls.Add(label4);
             groupBox1.Controls.Add(SkillsListbox);
             groupBox1.Controls.Add(SaveButton);
@@ -100,7 +102,7 @@
             // AvailableCheckbox
             // 
             AvailableCheckbox.AutoSize = true;
-            AvailableCheckbox.Location = new Point(177, 250);
+            AvailableCheckbox.Location = new Point(11, 286);
             AvailableCheckbox.Name = "AvailableCheckbox";
             AvailableCheckbox.Size = new Size(74, 19);
             AvailableCheckbox.TabIndex = 7;
@@ -130,7 +132,7 @@
             label3.AutoSize = true;
             label3.Location = new Point(6, 177);
             label3.Name = "label3";
-            label3.Size = new Size(86, 15);
+            label3.Size = new Size(87, 15);
             label3.TabIndex = 4;
             label3.Text = "Assigned Team";
             // 
@@ -176,6 +178,16 @@
             NewPersonButton.UseVisualStyleBackColor = true;
             NewPersonButton.Click += NewPersonButton_Click;
             // 
+            // UnavilButton
+            // 
+            UnavilButton.Location = new Point(159, 251);
+            UnavilButton.Name = "UnavilButton";
+            UnavilButton.Size = new Size(136, 54);
+            UnavilButton.TabIndex = 11;
+            UnavilButton.Text = "Set Unavailable Dates";
+            UnavilButton.UseVisualStyleBackColor = true;
+            UnavilButton.Click += UnavilButton_Click;
+            // 
             // PersonManagement
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -208,5 +220,6 @@
         private CheckBox ActiveCheckbox;
         private ComboBox TeamCombobox;
         private Label label3;
+        private Button UnavilButton;
     }
 }
