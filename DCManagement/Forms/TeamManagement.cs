@@ -3,7 +3,7 @@
 namespace DCManagement.Forms;
 public partial class TeamManagement : Form {
     #region Fields
-    private DataManagement _data;
+    private readonly DataManagement _data;
     private Dictionary<int, string> _teams = [];
     private LocationCollection _locations = [];
     private PersonCollection _people = [];

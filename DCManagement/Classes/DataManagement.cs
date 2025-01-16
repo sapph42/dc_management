@@ -1,9 +1,7 @@
-﻿using System;
-using System.Data;
+﻿using System.Data;
 using DCManagement.Resources;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
-using static Org.BouncyCastle.Crypto.Fips.FipsDsa.DomainParametersValidator;
 
 namespace DCManagement.Classes;
 public enum DataSource {
@@ -11,7 +9,7 @@ public enum DataSource {
     SQLite
 }
 public class DataManagement {
-    private string _sqlConnectionString;
+    private readonly string _sqlConnectionString;
     private readonly string _sqliteConnectionString;
     public DataSource DataSource { get; init; } = DataSource.SQL;
     public DataManagement() : this(DataSource.SQL) { }
@@ -1202,9 +1200,7 @@ public class DataManagement {
         var result = cmd.ExecuteScalar();
         if (result is DBNull || result is null)
             return false;
-        if ((result is bool && (bool)result) || (result is int && Convert.ToBoolean((int)result)))
-            return true;
-        return false;
+        return (result is bool boolResult && boolResult) || (result is int intResult && Convert.ToBoolean(intResult));
     }
     private bool CheckForFinalizedAssignments_Sqlite() {
         using SqliteConnection conn = new(_sqlConnectionString);
@@ -1306,8 +1302,8 @@ public class DataManagement {
                     person.Team = FloatTeam;
                     available.People.Add(person); //AvailablePeople
                 } else if (person.Team is not null)
-                    if (everyone.ContainsKey(person.Team.TeamLeadID))
-                        person.Team.TeamLead = everyone[person.Team.TeamLeadID];
+                    if (everyone.TryGetValue(person.Team.TeamLeadID, out Person? value))
+                        person.Team.TeamLead = value;
                     else if (person.Team.TeamLeadID != -1)
                         person.Team.TeamLead = GetPerson_Sql(person.Team.TeamLeadID);
                 everyone.Add(person); //PeopleCollection
@@ -1343,8 +1339,8 @@ public class DataManagement {
                     person.Team = FloatTeam;
                     available.People.Add(person);
                 } else if (person.Team is not null)
-                    if (everyone.ContainsKey(person.Team.TeamLeadID))
-                        person.Team.TeamLead = everyone[person.Team.TeamLeadID];
+                    if (everyone.TryGetValue(person.Team.TeamLeadID, out Person? value))
+                        person.Team.TeamLead = value;
                     else 
                         person.Team.TeamLead = GetPerson_Sqlite(personID);
                 everyone.Add(person); 
@@ -1424,14 +1420,14 @@ public class DataManagement {
             Team team = Teams.First(t => t.TeamID == (int)r[1]);
             int personID = (int)r[0];
             People.AssignTeam(personID, team);
-            team.AssignPerson(People[personID], (int)r[2], null, true);
+            team.AssignPerson(People[personID], (int)r[2], null);
             People[personID].AssignmentLocked = true;
         }
 
         AvailablePeople = new();
         foreach (int personID in GetFinalizedFloats_Sql()) {
-            if (People.ContainsKey(personID))
-                AvailablePeople.Add(People[personID]);
+            if (People.TryGetValue(personID, out Person? value))
+                AvailablePeople.Add(value);
             else {
                 Person floater = GetPerson_Sql(personID);
                 AvailablePeople.Add(floater);
@@ -1501,21 +1497,21 @@ public class DataManagement {
             Team team = Teams.First(t => t.TeamID == (int)r[1]);
             int personID = (int)r[0];
             People.AssignTeam(personID, team);
-            team.AssignPerson(People[personID], (int)r[2], null, true);
+            team.AssignPerson(People[personID], (int)r[2], null);
             People[personID].AssignmentLocked = true;
         }
 
         AvailablePeople = new();
         foreach (int personID in GetFinalizedFloats_Sql()) {
-            if (People.ContainsKey(personID))
-                AvailablePeople.Add(People[personID]);
+            if (People.TryGetValue(personID, out Person? value))
+                AvailablePeople.Add(value);
             else {
                 Person floater = GetPerson_Sql(personID);
                 AvailablePeople.Add(floater);
             }
         }
     }
-    private List<int> GetFinalizedFloats() {
+    public List<int> GetFinalizedFloats() {
         if (DataSource == DataSource.SQL)
             return GetFinalizedFloats_Sql();
         else
@@ -1788,7 +1784,7 @@ public class DataManagement {
         return columns;
     }
     private void CreateSqliteTable(string TableName, List<(string ColumnName, string DataType)> Columns) {
-        using SqliteConnection conn = new SqliteConnection(_sqliteConnectionString);
+        using SqliteConnection conn = new(_sqliteConnectionString);
         using SqliteCommand cmd = new();
         cmd.Connection = conn;
         var columnDefs = string.Join(", ", Columns.Select(col => 
@@ -1817,7 +1813,7 @@ public class DataManagement {
         cmd.ExecuteNonQuery();
     }
     private void TransferTableData(string TableName, List<(string ColumnName, string DataType)> Columns) {
-        using SqliteConnection sqliteConn = new SqliteConnection(_sqliteConnectionString);
+        using SqliteConnection sqliteConn = new(_sqliteConnectionString);
         using SqliteCommand sqliteCmd = new();
         using SqlConnection sqlConn = new(_sqlConnectionString);
         using SqlCommand sqlCmd = new();
@@ -1834,15 +1830,15 @@ public class DataManagement {
             var columnNames = string.Join(", ", Columns.Select(c => c.ColumnName));
             var parameters = string.Join(", ", Columns.Select(c => $"@{c.ColumnName}"));
             sqliteCmd.CommandText = $"INSERT INTO {TableName} ({columnNames}) VALUES ({parameters})";
-            foreach (var column in Columns) {
-                var value = sqlReader[column.ColumnName];
+            foreach (var (ColumnName, DataType) in Columns) {
+                var value = sqlReader[ColumnName];
                 if (value is DBNull)
                     value = DBNull.Value;
-                else if (column.DataType == "datetime" || column.DataType == "datetime2")
+                else if (DataType == "datetime" || DataType == "datetime2")
                     value = Convert.ToDateTime(value).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-                else if (column.DataType == "bit")
+                else if (DataType == "bit")
                     value = (bool)value ? 1 : 0;
-                sqliteCmd.Parameters.AddWithValue($"@{column.ColumnName}", value);
+                sqliteCmd.Parameters.AddWithValue($"@{ColumnName}", value);
             }
             sqliteCmd.ExecuteNonQuery();
             sqliteCmd.Parameters.Clear();

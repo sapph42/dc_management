@@ -20,6 +20,7 @@ internal class StateString {
     private void OnStateChanged(StateStringEventArgs e) {
         StateChanged?.Invoke(this, e);
     }
+    public override string ToString() => _state;
 }
 internal class StateStringEventArgs(string laststring, string newstring) : EventArgs {
     public string LastText { get; init; } = laststring;

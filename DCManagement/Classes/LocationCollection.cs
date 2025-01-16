@@ -1,9 +1,7 @@
 ﻿namespace DCManagement.Classes; 
 public class LocationCollection : Dictionary<int, Location> {
     private readonly Dictionary<int, string> _idsAndNames = [];
-    public SortedDictionary<int, string> ListboxDatasource {
-        get => new SortedDictionary<int, string>(_idsAndNames.OrderBy(i => i.Value).ToDictionary());
-    }
+    public SortedDictionary<int, string> ListboxDatasource => new(_idsAndNames.OrderBy(i => i.Value).ToDictionary());
     public LocationCollection() { }
     public static LocationCollection FromEnumerable(IEnumerable<KeyValuePair<int, Location>> items) {
         var collection = new LocationCollection();

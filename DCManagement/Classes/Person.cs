@@ -6,7 +6,7 @@ public class Person : IEquatable<Person> {
     private Team? _team;
     private bool _active = true;
     private bool _available = true;
-    private DataManagement _data = new(Program.Source);
+    private readonly DataManagement _data = new(Program.Source);
     public int? PersonID { get; set; }
     public string LastName { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;

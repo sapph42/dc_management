@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DCManagement.Classes; 
+﻿namespace DCManagement.Classes; 
 public class AvailablePeople {
     private List<Person> _people;
     public List<Person> People {

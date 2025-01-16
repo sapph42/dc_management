@@ -10,7 +10,7 @@ using Rectangle = System.Drawing.Rectangle;
 
 namespace DCManagement.Forms;
 public partial class DailyAssignment : Form {
-    private DataManagement _data;
+    private readonly DataManagement _data;
     private List<Skill> _skills = [];
     private PersonCollection _people = [];
     private List<Team> _allTeams = [];
@@ -95,6 +95,7 @@ public partial class DailyAssignment : Form {
         }
         if (!_teams.Any(t => !t.HasGoalStaffingBySkill(SkillID)))
             return;
+
         //Now scan for teams that are over their goal count and have available unlocked members
         //If found, swap to the team that needs them more
         for (int i = 0; i < _teams.Count; i++) {
@@ -115,9 +116,6 @@ public partial class DailyAssignment : Form {
         }
         if (!_teams.Any(t => !t.HasGoalStaffingBySkill(SkillID)))
             return;
-        //ThisSlotNeedsFilling
-        //ThereAreAvailableMoves
-        //TODO Generate some kind of alert that not all teams could be filled
     }
     private void FillMinimumSlots(int SkillID) {
         //First try and fill all teams to minimum staffing from float
@@ -179,9 +177,6 @@ public partial class DailyAssignment : Form {
         }
         if (!_teams.Any(t => !t.HasMinimumStaffingBySkill(SkillID)))
             return;
-        //ThisSlotNeedsFilling
-        //ThereAreAvailableMoves
-        //TODO Generate some kind of alert that not all teams could be filled
     }
     private List<Skill> GetActiveSkills() =>
         _teams
@@ -267,7 +262,6 @@ public partial class DailyAssignment : Form {
                         floater.Team.ReassignPerson(floater, _float, slot.SkillID);
                     if (!_availablePeople.People.Contains(floater))
                         _availablePeople.People.Add(floater);
-                    //                    floater.AssignedSlot = null;
                 }
             }
             _teams.Remove(team);
@@ -309,7 +303,6 @@ public partial class DailyAssignment : Form {
                         floater.Team.ReassignPerson(floater, _float, slot.SkillID);
                     if (!_availablePeople.People.Contains(floater))
                         _availablePeople.People.Add(floater);
-                    //floater.AssignedSlot = null;
                 }
             }
         }
@@ -367,9 +360,7 @@ public partial class DailyAssignment : Form {
     }
     private void MoveToFloat(Person person) {
         person.Available = true;
-        if (person.Team is not null) {
-            person.Team.RemovePerson(person);
-        }
+        person.Team?.RemovePerson(person);
         person.Team = _float;
         _availablePeople.People.Add(person);
         person.AssignedSlot = null;
@@ -415,16 +406,16 @@ public partial class DailyAssignment : Form {
             return;
         Team? newTeam = _teams.Where(t => t.CurrentAssignment is not null && t.CurrentAssignment.Equals(loc)).FirstOrDefault();
         if (_unavailable.LocationID == loc.LocID) {
-            if (tag is Person)
-                SetUnavailable((Person)tag);
-            else if (tag is Team)
-                SetUnavailable(((Team)tag).TeamLead!);
+            if (tag is Person unavailablePerson)
+                SetUnavailable(unavailablePerson);
+            else if (tag is Team teamWUnavilLead)
+                SetUnavailable(teamWUnavilLead.TeamLead!);
             return;
         } else if (_float.LocationID == loc.LocID) {
-            if (tag is Person)
-                MoveToFloat((Person)tag);
-            else if (tag is Team)
-                MoveToFloat(((Team)tag).TeamLead!);
+            if (tag is Person floatPerson)
+                MoveToFloat(floatPerson);
+            else if (tag is Team teamWFloatLead)
+                MoveToFloat(teamWFloatLead.TeamLead!);
             return;
         }
         if (newTeam is null && tag is not Team
@@ -503,8 +494,8 @@ public partial class DailyAssignment : Form {
             if (_people.ContainsKey((int)person.PersonID!))
                 person = _people[(int)person.PersonID!];
             else if (_unavailablePeople.Contains(person)) {
-                _unavailablePeople.Remove(person);
                 _people.Add(person);
+                _unavailablePeople.Remove(person);
                 person.Available = true;
             }
             Slot? slot = newTeam.HighestPriorityMatch(person);
@@ -615,8 +606,8 @@ public partial class DailyAssignment : Form {
             return;
         Team oldTeam;
         Person person;
-        if (label.Tag is Team) {
-            oldTeam = (Team)label.Tag;
+        if (label.Tag is Team labelTeam) {
+            oldTeam = labelTeam;
             person = oldTeam.TeamLead!;
         } else {
             person = (Person)label.Tag!;
@@ -1098,7 +1089,7 @@ public partial class DailyAssignment : Form {
         EditMenu.Visible = false;
         Refresh();
         using Bitmap screenshot = CaptureFormClientArea();
-        using SaveFileDialog saveFileDialog = new SaveFileDialog() {
+        using SaveFileDialog saveFileDialog = new() {
             Filter = "PDF (*.pdf)|*.pdf",
             CheckWriteAccess = true
         };
@@ -1118,7 +1109,7 @@ public partial class DailyAssignment : Form {
         g.CopyFromScreen(clientOffset.X, clientOffset.Y, 0, 0, ClientSize);
         return screenshot;
     }
-    private void ConvertImageToPdf(Bitmap image, string outputFullPath, PageSize pageSize, float marginInInches) {
+    private static void ConvertImageToPdf(Bitmap image, string outputFullPath, PageSize pageSize, float marginInInches) {
         float marginInPoints = marginInInches * 72;
         pageSize = pageSize.Rotate();
         using MemoryStream imageStream = new();

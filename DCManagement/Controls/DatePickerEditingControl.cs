@@ -34,6 +34,7 @@ public class DatePickerEditingControl : DateTimePicker, IDataGridViewEditingCont
         get => rowIndex;
         set => rowIndex = value;
     }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0066:Convert switch statement to expression", Justification = "It looks ugly here")]
     public bool EditingControlWantsInputKey(Keys key, bool dataGridViewWantsInputKey) {
         switch (key & Keys.KeyCode) {
             case Keys.Left:

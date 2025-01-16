@@ -1,9 +1,7 @@
 ﻿namespace DCManagement.Classes;
 public class PersonCollection : Dictionary<int, Person> {
-    private Dictionary<int, string> _idsAndNames = [];
-    public Dictionary<int, string> ListboxDatasource {
-        get => _idsAndNames; 
-    }
+    private readonly Dictionary<int, string> _idsAndNames = [];
+    public Dictionary<int, string> ListboxDatasource => _idsAndNames;
     public PersonCollection() { }
     internal void AddRangeUnsafe(Dictionary<int, Person> internalDict) {
         foreach (var kvp in internalDict){

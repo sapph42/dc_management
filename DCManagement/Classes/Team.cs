@@ -41,8 +41,8 @@ public class Team : IEquatable<Team> {
         _primaryLoc = values[3] == DBNull.Value ? null : (int)values[3];
         FillIfNoLead = (bool)values[4];
         Active = (bool)values[5];
-        if (values[6] is bool)
-            Clinical = (bool)values[6];
+        if (values[6] is bool clinical)
+            Clinical = clinical;
         else 
             Clinical = Convert.ToBoolean(values[6]);
     }
@@ -77,7 +77,8 @@ public class Team : IEquatable<Team> {
             .First()
             .AssignToSlot(person);
     }
-    public void AssignPerson(Person person, int SlotID, int? skillID, bool lockOverride = false) {
+    public void AssignPerson(Person person, int SlotID, int? skillID) {
+        _ = skillID;
         person.Team = this;
         Slots.AssignByID(person, SlotID);
     }

@@ -39,8 +39,8 @@ public class Location : IEquatable<Location> {
         Name = (string)values[1];
         UpperLeft = new((int)values[2], (int)values[3]);
         Size = new((int)values[4], (int)values[5]);
-        if (values[6] is bool)
-            Clinical = (bool)values[6];
+        if (values[6] is bool clinical)
+            Clinical = clinical;
         else Convert.ToBoolean(values[6]);
     }
     public Location Clone() {

@@ -1,4 +1,4 @@
-﻿namespace DCManagement.Classes; 
+﻿namespace DCManagement.Classes;
 public class Floorplan {
     public enum Edge {
         None,
@@ -11,8 +11,8 @@ public class Floorplan {
         BottomRight,
         BottomLeft
     }
-    private Dictionary<Point, Edge> _points = [];
-    private DataManagement _data;
+    private readonly  Dictionary<Point, Edge> _points = [];
+    private readonly DataManagement _data;
     public Image BaseImage { get; set; }
     public Image? ImageWithLocations { get; set; }
     public Image? ImageMoving { get; set; }

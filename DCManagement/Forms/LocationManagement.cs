@@ -20,7 +20,7 @@ public partial class LocationManagement : Form {
         Resizing
     }
     #region Fields
-    private DataManagement _data;
+    private readonly DataManagement _data;
     private ActionState _actionState;
     private ActionAllowed _actionAllowed;
     private Point _lastClick;
@@ -189,8 +189,8 @@ public partial class LocationManagement : Form {
             return;
         Point first;
         Point second;
-        Rectangle rect = new();
         Cursor.Current = Cursors.Default;
+        Rectangle rect;
         switch (_actionState) {
             case ActionState.Moving:
                 if (_actionAllowed != ActionAllowed.Moving || _lastClickLocation is null) {
@@ -240,8 +240,9 @@ public partial class LocationManagement : Form {
                         Height = Math.Abs(first.Y - second.Y)
                     }
                 };
-                _pendingLocation = new(rect);
-                _pendingLocation.Clinical = true;
+                _pendingLocation = new(rect) {
+                    Clinical = true
+                };
                 if (_floorplan.Locations.IntersectsWithAny(_pendingLocation)) {
                     _pendingLocation = null;
                     _actionState = ActionState.None;
