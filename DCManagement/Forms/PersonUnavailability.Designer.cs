@@ -25,12 +25,14 @@ partial class PersonUnavailability {
     /// the contents of this method with the code editor.
     /// </summary>
     private void InitializeComponent() {
+        DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+        DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
         NameLabel = new Label();
         UnavailabilityDGV = new DataGridView();
         RecordIDColumn = new DataGridViewTextBoxColumn();
         PersonIDColumn = new DataGridViewTextBoxColumn();
-        StartDateColumn = new DataGridViewDatePickerColumn();
-        EndDateColumn = new DataGridViewDatePickerColumn();
+        StartDateColumn = new DataGridViewTextBoxColumn();
+        EndDateColumn = new DataGridViewTextBoxColumn();
         ((System.ComponentModel.ISupportInitialize)UnavailabilityDGV).BeginInit();
         SuspendLayout();
         // 
@@ -53,7 +55,6 @@ partial class PersonUnavailability {
         UnavailabilityDGV.TabIndex = 1;
         UnavailabilityDGV.CellEndEdit += UnavailabilityDGV_CellEndEdit;
         UnavailabilityDGV.CellLeave += UnavailabilityDGV_CellLeave;
-        UnavailabilityDGV.CellValidating += UnavailabilityDGV_CellValidating;
         UnavailabilityDGV.RowEnter += UnavailabilityDGV_RowEnter;
         UnavailabilityDGV.RowLeave += UnavailabilityDGV_RowLeave;
         UnavailabilityDGV.UserAddedRow += UnavailabilityDGV_UserAddedRow;
@@ -61,33 +62,45 @@ partial class PersonUnavailability {
         // 
         // RecordIDColumn
         // 
+        RecordIDColumn.DataPropertyName = "RecordID";
         RecordIDColumn.HeaderText = "RecordID";
         RecordIDColumn.Name = "RecordIDColumn";
         RecordIDColumn.Visible = false;
         // 
         // PersonIDColumn
         // 
+        PersonIDColumn.DataPropertyName = "PersonID";
         PersonIDColumn.HeaderText = "PersonID";
         PersonIDColumn.Name = "PersonIDColumn";
         PersonIDColumn.Visible = false;
         // 
         // StartDateColumn
         // 
+        StartDateColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        StartDateColumn.DataPropertyName = "StartDate";
+        dataGridViewCellStyle1.Format = "d";
+        dataGridViewCellStyle1.NullValue = "Enter A Date";
+        StartDateColumn.DefaultCellStyle = dataGridViewCellStyle1;
         StartDateColumn.HeaderText = "Start Date";
         StartDateColumn.Name = "StartDateColumn";
-        StartDateColumn.Visible = true;
+        StartDateColumn.Width = 83;
         // 
         // EndDateColumn
         // 
+        EndDateColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        EndDateColumn.DataPropertyName = "EndDate";
+        dataGridViewCellStyle2.Format = "d";
+        dataGridViewCellStyle2.NullValue = "Enter A Date";
+        EndDateColumn.DefaultCellStyle = dataGridViewCellStyle2;
         EndDateColumn.HeaderText = "End Date";
         EndDateColumn.Name = "EndDateColumn";
-        EndDateColumn.Visible = true;
+        EndDateColumn.Width = 79;
         // 
         // PersonUnavailability
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(800, 450);
+        ClientSize = new Size(327, 244);
         Controls.Add(UnavailabilityDGV);
         Controls.Add(NameLabel);
         Name = "PersonUnavailability";
@@ -97,17 +110,12 @@ partial class PersonUnavailability {
         ResumeLayout(false);
         PerformLayout();
     }
-
-    private void UnavailabilityDGV_CellLeave1(object sender, DataGridViewCellEventArgs e) {
-        throw new NotImplementedException();
-    }
-
     #endregion
 
     private Label NameLabel;
     private DataGridView UnavailabilityDGV;
     private DataGridViewTextBoxColumn RecordIDColumn;
     private DataGridViewTextBoxColumn PersonIDColumn;
-    private DataGridViewDatePickerColumn StartDateColumn;
-    private DataGridViewDatePickerColumn EndDateColumn;
+    private DataGridViewTextBoxColumn StartDateColumn;
+    private DataGridViewTextBoxColumn EndDateColumn;
 }

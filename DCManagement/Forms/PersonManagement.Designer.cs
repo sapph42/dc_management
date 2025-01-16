@@ -25,6 +25,7 @@
         private void InitializeComponent() {
             EmployeeListbox = new ListBox();
             groupBox1 = new GroupBox();
+            UnavilButton = new Button();
             label4 = new Label();
             SkillsListbox = new CheckedListBox();
             SaveButton = new Button();
@@ -37,7 +38,7 @@
             LastnameTextbox = new TextBox();
             label1 = new Label();
             NewPersonButton = new Button();
-            UnavilButton = new Button();
+            InactiveCheckbox = new CheckBox();
             groupBox1.SuspendLayout();
             SuspendLayout();
             // 
@@ -47,7 +48,7 @@
             EmployeeListbox.ItemHeight = 15;
             EmployeeListbox.Location = new Point(12, 12);
             EmployeeListbox.Name = "EmployeeListbox";
-            EmployeeListbox.Size = new Size(148, 304);
+            EmployeeListbox.Size = new Size(148, 289);
             EmployeeListbox.TabIndex = 0;
             EmployeeListbox.SelectedIndexChanged += EmployeeListbox_SelectedIndexChanged;
             // 
@@ -71,6 +72,16 @@
             groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
             groupBox1.Text = "Person Data";
+            // 
+            // UnavilButton
+            // 
+            UnavilButton.Location = new Point(159, 251);
+            UnavilButton.Name = "UnavilButton";
+            UnavilButton.Size = new Size(136, 54);
+            UnavilButton.TabIndex = 11;
+            UnavilButton.Text = "Set Unavailable Dates";
+            UnavilButton.UseVisualStyleBackColor = true;
+            UnavilButton.Click += UnavilButton_Click;
             // 
             // label4
             // 
@@ -132,7 +143,7 @@
             label3.AutoSize = true;
             label3.Location = new Point(6, 177);
             label3.Name = "label3";
-            label3.Size = new Size(87, 15);
+            label3.Size = new Size(86, 15);
             label3.TabIndex = 4;
             label3.Text = "Assigned Team";
             // 
@@ -178,21 +189,23 @@
             NewPersonButton.UseVisualStyleBackColor = true;
             NewPersonButton.Click += NewPersonButton_Click;
             // 
-            // UnavilButton
+            // InactiveCheckbox
             // 
-            UnavilButton.Location = new Point(159, 251);
-            UnavilButton.Name = "UnavilButton";
-            UnavilButton.Size = new Size(136, 54);
-            UnavilButton.TabIndex = 11;
-            UnavilButton.Text = "Set Unavailable Dates";
-            UnavilButton.UseVisualStyleBackColor = true;
-            UnavilButton.Click += UnavilButton_Click;
+            InactiveCheckbox.AutoSize = true;
+            InactiveCheckbox.Location = new Point(12, 307);
+            InactiveCheckbox.Name = "InactiveCheckbox";
+            InactiveCheckbox.Size = new Size(99, 19);
+            InactiveCheckbox.TabIndex = 3;
+            InactiveCheckbox.Text = "Show Inactive";
+            InactiveCheckbox.UseVisualStyleBackColor = true;
+            InactiveCheckbox.CheckedChanged += InactiveCheckbox_CheckedChanged;
             // 
             // PersonManagement
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(706, 367);
+            Controls.Add(InactiveCheckbox);
             Controls.Add(NewPersonButton);
             Controls.Add(groupBox1);
             Controls.Add(EmployeeListbox);
@@ -202,6 +215,7 @@
             groupBox1.ResumeLayout(false);
             groupBox1.PerformLayout();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -221,5 +235,6 @@
         private ComboBox TeamCombobox;
         private Label label3;
         private Button UnavilButton;
+        private CheckBox InactiveCheckbox;
     }
 }

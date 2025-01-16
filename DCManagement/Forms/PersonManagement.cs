@@ -44,7 +44,10 @@ public partial class PersonManagement : Form {
         _people = _data.GetPersonList();
         if (_people.Count == 0)
             return;
-        EmployeeListbox.DataSource = new BindingSource(_people.ListboxDatasource, null);
+        if (InactiveCheckbox.Checked)
+            EmployeeListbox.DataSource = new BindingSource(_people.ListboxDatasource, null);
+        else
+            EmployeeListbox.DataSource = new BindingSource(_people.ActiveListboxDatasource, null);
         EmployeeListbox.DisplayMember = "Value";
         EmployeeListbox.ValueMember = "Key";
         EmployeeListbox.Refresh();
@@ -92,6 +95,9 @@ public partial class PersonManagement : Form {
             else
                 SkillsListbox.SetItemChecked(i, false);
         }
+    }
+    private void InactiveCheckbox_CheckedChanged(object sender, EventArgs e) {
+        RefreshBox();
     }
     private void NewPersonButton_Click(object sender, EventArgs e) {
         _inserting = true;

@@ -43,7 +43,7 @@ public partial class SlotAssignment : Form {
             if ((int)row.Cells[1].Value == 0 || 
                 string.IsNullOrWhiteSpace((string)row.Cells[2].Value) || 
                 string.IsNullOrWhiteSpace((string)row.Cells[3].Value)) {
-                row.ErrorText = "Must fill out all fields for new column!";
+                row.ErrorText = "Must fill out all fields for new row!";
             } else {
                 row.ErrorText = "";
             }

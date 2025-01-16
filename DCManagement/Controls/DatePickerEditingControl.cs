@@ -8,6 +8,8 @@ public class DatePickerEditingControl : DateTimePicker, IDataGridViewEditingCont
     }
     public object EditingControlFormattedValue {
         get {
+            if (Value < DateTime.Parse("2024-01-01"))
+                return "";
             return Value.ToShortDateString();
         }
         set {
@@ -16,8 +18,9 @@ public class DatePickerEditingControl : DateTimePicker, IDataGridViewEditingCont
                     Value = DateTime.Parse(stringVal);
                 } catch { }
                 Value = DateTime.Today;
-            } else if (value is DateTime dateTimeVal)
+            } else if (value is DateTime dateTimeVal) {
                 Value = dateTimeVal;
+            }
             else
                 Value = DateTime.Today;
         }
