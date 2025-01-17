@@ -636,7 +636,7 @@ public partial class DailyAssignment : Form {
         }
     }
     private static LabelPattern DetermineTeamPattern(Team team) {
-        if (team.TeamLead is null) {
+        if (team.TeamLead is null && !team.Clinical) {
             int assignedToTeam = team.Slots.Select(s => s.AssignedToSlot).Sum();
             if (assignedToTeam == 0)
                 return LabelPattern.None;
@@ -647,6 +647,8 @@ public partial class DailyAssignment : Form {
         } else {
             List<Person> assignedToTeam = team.Slots.SelectMany(s => s.Assigned).ToList();
             int nonLeadMembers = assignedToTeam.Except([team.TeamLead]).Count();
+            if (nonLeadMembers == assignedToTeam.Count && team.Clinical && team.Slots[0].Description == "Dentist")
+                nonLeadMembers--;
             bool hasEFDA = team.Slots.Any(s => s.Description == "EFDA" && s.AssignedToSlot > 0);
             if (nonLeadMembers == 0)
                 return LabelPattern.Single;
