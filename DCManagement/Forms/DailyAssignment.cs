@@ -418,8 +418,7 @@ public partial class DailyAssignment : Form {
                 MoveToFloat(teamWFloatLead.TeamLead!);
             return;
         }
-        if (newTeam is null && tag is not Team
-            )
+        if (newTeam is null && tag is not Team)
             newTeam = _defunctTeams.Where(t => t.PrimaryLocation is not null && t.PrimaryLocation.Equals(loc)).FirstOrDefault();
         Team currentTeam;
         if (newTeam is null && tag is Team defunctToValid) {
@@ -491,6 +490,9 @@ public partial class DailyAssignment : Form {
             _teams.Remove(currentTeam);
             _defunctTeams.Add(currentTeam);
         } else if (newTeam is not null && tag is Person person) {
+            if (person.Team is not null && person.Team.TeamLead is not null && person.Team.TeamLead == person && newTeam.CurrentAssignment == loc ) {
+                return;
+            }
             if (_people.ContainsKey((int)person.PersonID!))
                 person = _people[(int)person.PersonID!];
             else if (_unavailablePeople.Contains(person)) {
@@ -677,7 +679,7 @@ public partial class DailyAssignment : Form {
 
         Point topLeft = rect.Location;
         int centerX = topLeft.X + rect.Width / 2;
-        int topY = topLeft.Y + (int)(10 * _floorplan.GetScale().Y);
+        int topY = topLeft.Y + (int)(5 * _floorplan.GetScale().Y);
         int currentY = topY;
         Point lastLabelLoc = new(0, topY);
         Person teamLead;
@@ -694,7 +696,7 @@ public partial class DailyAssignment : Form {
                                      .Count();
                 if (stackCount == 0)
                     break;
-                int firstY = topY + 16;
+                int firstY = currentY = topY + 16;
                 int lastY = rect.Bottom - 26;
                 int spacing = (stackCount > 1) ? (lastY - firstY) / (stackCount - 1) : 0;
                 for (int i = 0; i < team.Slots.Count; i++) {
@@ -703,8 +705,8 @@ public partial class DailyAssignment : Form {
                     for (int j = 0; j < slot.AssignedToSlot; j++) {
                         var person = slot.GetAssignee(j);
                         person.Team = team;
-                        currentY = firstY + (spacing * (i + 1) * j);
                         person.GenerateCenteredLabelTemplate(centerX, currentY, slotColor);
+                        currentY += spacing;
                         lastLabelLoc = person.Label.Location;
                         Controls.Add(person.Label);
                         _labels.Add(person.Label);
