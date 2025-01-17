@@ -6,10 +6,13 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-	<ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
-	<Configurations>Debug;Release;Ext</Configurations>
-	<AssemblyVersion>0.9.0.0</AssemblyVersion>
-	<NeutralLanguage>en-US</NeutralLanguage>
+    <ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
+    <Configurations>Debug;Release;Ext</Configurations>
+    <AssemblyVersion>0.9.0.0</AssemblyVersion>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
+    <GenerateSatelliteAssemblies>false</GenerateSatelliteAssemblies>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +21,7 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
     <PackageReference Include="System.DirectoryServices.AccountManagement" Version="9.0.1" />
+    <PackageReference Include="System.Private.Uri" Version="4.3.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,5 +38,8 @@
       <LastGenOutput>GlobalResources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
+  <Target Name="RemoveLocalizationFolders" AfterTargets="Build">
+    <RemoveDir Directories="$(OutputPath)\**\*" Condition="Exists('$(OutputPath)\**\*.resources.dll')" />
+  </Target>
 
 </Project>

@@ -76,6 +76,8 @@ public partial class LocationManagement : Form {
             default:
                 break;
         }
+        _actionAllowed = ActionAllowed.None;
+        _actionState = ActionState.None;
         _floorplan.ImageWithLocations = _floorplan.DrawLocations();
         BackgroundImage = _floorplan.ImageWithLocations;
     }
@@ -635,8 +637,9 @@ public partial class LocationManagement : Form {
             return;
         _pendingLocation = null;
         CancelActionStates(true);
-        CancelPendingActionToolStripMenuItem.Visible = true;
+        CancelPendingActionToolStripMenuItem.Visible = false;
         _lastClickLocation.Clinical = !_lastClickLocation.Clinical;
         _actionState = ActionState.ClinicalToggle;
+        WriteNewLocation();
     }
 }

@@ -51,7 +51,7 @@ public partial class PersonManagement : Form {
         EmployeeListbox.DisplayMember = "Value";
         EmployeeListbox.ValueMember = "Key";
         EmployeeListbox.Refresh();
-        if (selectedValue != null) {
+        if (selectedValue != null) { 
             EmployeeListbox.SelectedValue = selectedValue;
         }
     }
@@ -59,7 +59,10 @@ public partial class PersonManagement : Form {
         if (_selectedPerson is null)
             return;
         _data.UpdatePerson(_selectedPerson, _skills);
-        RefreshBox(_selectedPerson.PersonID);
+        if (_selectedPerson.Active)
+            RefreshBox(_selectedPerson.PersonID);
+        else
+            RefreshBox();
     }
     #endregion
     #region Form Event Handlers
