@@ -96,7 +96,7 @@ public class DataManagement {
             WriteFloorplan_Sqlite(Filename);
     }
     private void WriteFloorplan_Sql(string Filename) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         using FileStream file = File.OpenRead(Filename);
         cmd.CommandType = CommandType.Text;
@@ -242,42 +242,39 @@ public class DataManagement {
         conn.Open();
         _ = cmd.ExecuteNonQuery();
     }
-    public string DeleteLocation(Location Location) {
+    public void DeleteLocation(Location Location) {
         if (DataSource == DataSource.SQL)
-            return DeleteLocation_Sql(Location);
+            DeleteLocation_Sql(Location);
         else
-            return DeleteLocation_Sqlite(Location);
+            DeleteLocation_Sqlite(Location);
     }
-    private string DeleteLocation_Sql(Location Location) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+    private void DeleteLocation_Sql(Location Location) {
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.DeleteLocation";
         cmd.Parameters.AddRange(GetLocParameters_Sql(true, Location));
         cmd.Connection = conn;
         conn.Open();
-        return cmd.ExecuteScalar().ToString()!;
+        cmd.ExecuteNonQuery();
     }
-    private string DeleteLocation_Sqlite(Location Location) {
-        string cascadeCheck = @"SELECT COUNT(TeamID) 
-                  FROM Team 
-                  WHERE PrimaryLocation = @LocID;";
-        string deleteLocation = @"DELETE FROM Location 
-                      WHERE LocID = @LocID;";
-        using SqliteConnection conn = new(_sqlConnectionString); ;
+    private void DeleteLocation_Sqlite(Location Location) {
+        string teamCheck = @"SELECT TeamID FROM Team WHERE PrimaryLocation=@ID";
+        string deleteLocation = @"DELETE FROM [Location] WHERE LocID=@ID";
+        using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
-        cmd.CommandText = cascadeCheck;
-        cmd.Parameters.AddRange(GetLocParameters_Sql(true, Location));
+        cmd.CommandText = teamCheck;
+        cmd.Parameters.Add("@ID", SqliteType.Integer);
+        cmd.Parameters["@ID"].Value = Location.LocID;
         cmd.Connection = conn;
         conn.Open();
-        long teamCount = (long)cmd.ExecuteScalar()!;
-        if (teamCount > 0) {
-            return "Cascade";
+        var result = cmd.ExecuteScalar()!;
+        if (result is not null && result is not DBNull && result is int teamID) {
+            DeleteTeam_Sqlite(teamID);
         }
         cmd.CommandText = deleteLocation;
-        _ = cmd.ExecuteNonQuery();
-        return "0";
+        cmd.ExecuteNonQuery();
     }
     public static SqlParameter[] GetLocParameters_Sql(Location loc) {
         SqlParameter[] coll =
@@ -382,7 +379,7 @@ public class DataManagement {
             return GetLocCollection_Sqlite();
     }
     private LocationCollection GetLocCollection_Sql() {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH, Clinical FROM Location";
@@ -400,7 +397,7 @@ public class DataManagement {
         return loc;
     }
     private LocationCollection GetLocCollection_Sqlite() {
-        using SqliteConnection conn = new(_sqlConnectionString); ;
+        using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = @"SELECT LocID, Name, LocX, LocY, SizeW, SizeH, Clinical FROM Location";
@@ -487,7 +484,7 @@ public class DataManagement {
         return person;
     }
     private Person GetPerson_Sqlite(int PersonID) {
-        using SqliteConnection conn = new(_sqlConnectionString); ;
+        using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand personCmd = new();
         using SqliteCommand skillCmd = new();
         personCmd.CommandType = skillCmd.CommandType = CommandType.Text;
@@ -539,7 +536,7 @@ public class DataManagement {
             return GetPersonList_Sqlite();
     }
     private PersonCollection GetPersonList_Sql() {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.GetPeople";
@@ -557,7 +554,7 @@ public class DataManagement {
         return people;
     }
     private PersonCollection GetPersonList_Sqlite() {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.Text;
         cmd.CommandText = "SELECT PersonID, LastName, FirstName, TeamID, Active, Available FROM Person";
@@ -684,7 +681,7 @@ public class DataManagement {
             UpdatePersonSkills_Sqlite(Person, Skills);
     }
     private void UpdatePersonSkills_Sql(Person Person, List<Skill> Skills) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.SetPersonSkill";
@@ -701,7 +698,7 @@ public class DataManagement {
         }
     }
     private void UpdatePersonSkills_Sqlite(Person Person, List<Skill> Skills) {
-        using SqliteConnection conn = new(_sqlConnectionString); ;
+        using SqliteConnection conn = new(_sqlConnectionString);
         using SqliteCommand isSetCmd = new();
         using SqliteCommand insertCmd = new();
         using SqliteCommand deleteCmd = new();
@@ -797,7 +794,7 @@ public class DataManagement {
             return DeleteSlot_Sqlite(SlotID);
     }
     private bool DeleteSlot_Sql(int SlotID) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.DeleteTeamSlot";
@@ -817,7 +814,7 @@ public class DataManagement {
             return InsertSlot_Sqlite(TeamID, SkillID, MinQty, GoalQty);
     }
     private int InsertSlot_Sql(int TeamID, int SkillID, int MinQty, int GoalQty) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.InsertTeamSlot";
@@ -843,7 +840,7 @@ public class DataManagement {
             return UpdateSlot_Sqlite(SlotID, TeamID, SkillID, MinQty, GoalQty);
     }
     private int UpdateSlot_Sql(int SlotID, int TeamID, int SkillID, int MinQty, int GoalQty) {
-        using SqlConnection conn = new(_sqlConnectionString); ;
+        using SqlConnection conn = new(_sqlConnectionString);
         using SqlCommand cmd = new();
         cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandText = "dbo.UpdateTeamSlot";
@@ -908,13 +905,82 @@ public class DataManagement {
         cmd.Parameters.Add("@Clinical", SqliteType.Integer);
         cmd.Parameters["@Name"].Value = Name;
         cmd.Parameters["@Lead"].Value = TeamLeadID != 1 ? TeamLeadID : DBNull.Value;
-        cmd.Parameters["@LocID"].Value = LocID != 1 ? LocID : DBNull.Value; ;
+        cmd.Parameters["@LocID"].Value = LocID != 1 ? LocID : DBNull.Value;
         cmd.Parameters["@Fill"].Value = Fill ? 1 : 0;
         cmd.Parameters["@Active"].Value = Active ? 1 : 0;
         cmd.Parameters["@Clinical"].Value = Clinical ? 1 : 0;
         cmd.Connection = conn;
         conn.Open();
         return (int)cmd.ExecuteScalar()!;
+    }
+    public void DeleteTeam(Team Team) {
+        if (Team.TeamID is null)
+            return;
+        if (DataSource == DataSource.SQL)
+            DeleteTeam_Sql((int)Team.TeamID);
+        else
+            DeleteTeam_Sqlite((int)Team.TeamID);
+    }
+    public void DeleteTeam(int TeamID) {
+        if (DataSource == DataSource.SQL)
+            DeleteTeam_Sql(TeamID);
+        else
+            DeleteTeam_Sqlite(TeamID);
+    }
+    private void DeleteTeam_Sql(int TeamID) {
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.CommandText = "dbo.Team";
+        cmd.Parameters.Add("@TeamID", SqlDbType.Int);
+        cmd.Parameters["@TeamID"].Value = TeamID;
+        cmd.Connection = conn;
+        conn.Open();
+        cmd.ExecuteNonQuery();
+    }
+    private void DeleteTeam_Sqlite(int TeamID) {
+        string delTeamAssignments = @"DELETE FROM TeamAssignments WHERE TeamID=@TeamID";
+        string delPersonAssignments = @"DELETE FROM PersonAssignments WHERE TeamID=@TeamID";
+        string delTeamSlots = @"DELETE FROM TeamSlot WHERE TeamID=@TeamID";
+        string delPersonAssoc = @"UPDATE Person SET TeamID=NULL WHERE TeamID=@TeamID";
+        string delTeam = @"DELETE FROM Team WHERE TeamID=@TeamID";
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandText = delTeamAssignments;
+        cmd.Parameters.Add("@TeamID", SqliteType.Integer);
+        cmd.Parameters["@TeamID"].Value = TeamID;
+        cmd.Connection = conn;
+        conn.Open();
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = delPersonAssignments;
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = delTeamSlots;
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = delPersonAssoc;
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = delTeam;
+        cmd.ExecuteNonQuery();
+    }
+    public int? GetCanonicalTeamLead(Team Team) {
+        if (Team.TeamID is null)
+            return null;
+        if (DataSource == DataSource.SQL)
+            return GetCanonicalTeamLead_Sql((int)Team.TeamID);
+        else
+            return GetCanonicalTeamLead_Sqlite((int)Team.TeamID);
+    }
+    public int? GetCanonicalTeamLead(int TeamID) {
+        if (DataSource == DataSource.SQL)
+            return GetCanonicalTeamLead_Sql(TeamID);
+        else
+            return GetCanonicalTeamLead_Sqlite(TeamID);
+    }
+    private int? GetCanonicalTeamLead_Sql(int TeamID) {
+        return GetTeam_Sql(TeamID).TeamLeadID;
+    }
+    private int? GetCanonicalTeamLead_Sqlite(int TeamID) {
+        return GetTeam_Sqlite(TeamID).TeamLeadID;
     }
     public Team GetTeam(int TeamID) {
         if (DataSource == DataSource.SQL)
@@ -1146,7 +1212,8 @@ public class DataManagement {
                     Description = thisSkill.Description,
                     SlotColor = thisSkill.SlotColor,
                     MinQty = reader.GetInt32(2),
-                    GoalQty = reader.GetInt32(3)
+                    GoalQty = reader.GetInt32(3),
+                    Priority = thisSkill.Priority
                 }
             );
         }

@@ -543,11 +543,11 @@ public partial class LocationManagement : Form {
     private void DeleteLocationToolStripMenuItem_Click(object sender, EventArgs e) {
         if (_lastClickLocation is null)
             return;
-        string result = _data.DeleteLocation(_lastClickLocation);
-        if (result == "0")
-            _floorplan.RemoveLocation(_lastClickLocation);
-        else if (result == "Cascade")
-            AlertMessagesTSMI.Text = "Cannot delete a location while teams are assigned to that location!";
+        var ack = MessageBox.Show("This will also delete the associated team. All personnel assigned to associated team will become unassigned.", "Warning!", MessageBoxButtons.OKCancel);
+        if (ack != DialogResult.OK)
+            return;
+        _data.DeleteLocation(_lastClickLocation);
+        _floorplan.RemoveLocation(_lastClickLocation);
         CancelActionStates();
         _floorplan.ImageWithLocations = _floorplan.DrawLocations();
         BackgroundImage = _floorplan.ImageWithLocations;
@@ -630,8 +630,6 @@ public partial class LocationManagement : Form {
         _data.WriteFloorplan(picker.FileName);
         LoadFloorplan();
     }
-    #endregion
-
     private void ToggleClinicalToolStripMenuItem_Click(object sender, EventArgs e) {
         if (_lastClickLocation is null)
             return;
@@ -642,4 +640,5 @@ public partial class LocationManagement : Form {
         _actionState = ActionState.ClinicalToggle;
         WriteNewLocation();
     }
+    #endregion
 }

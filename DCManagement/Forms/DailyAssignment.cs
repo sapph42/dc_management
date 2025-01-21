@@ -338,8 +338,13 @@ public partial class DailyAssignment : Form {
                 Controls.Remove(person.Label);
                 DrawFloat();
             } else {
+                _people.Remove(person);
                 Controls.Remove(person.Label);
                 person.RemoveFromTeam();
+                targetTeam.RemovePerson(person);
+                if (targetTeam.TeamLead is not null && targetTeam.TeamLead == person && !targetTeam.FillIfNoLead) {
+                    targetTeam.UnassignAll().ForEach(p => MoveToFloat(_people[(int)p.PersonID!]));
+                }
                 targetTeam.LabelPattern = DetermineTeamPattern(targetTeam);
                 DeleteLables(targetTeam);
                 CreateLabels(targetTeam);
@@ -357,6 +362,7 @@ public partial class DailyAssignment : Form {
         DrawUnavailable();
         if (toFloat)
             MoveToFloat(person);
+        _people.Add((int)person.PersonID!, person);
     }
     private void MoveToFloat(Person person) {
         person.Available = true;
@@ -491,7 +497,10 @@ public partial class DailyAssignment : Form {
             _defunctTeams.Add(currentTeam);
         } else if (newTeam is not null && tag is Person person) {
             if (person.Team is not null && person.Team.TeamLead is not null && person.Team.TeamLead == person && newTeam.CurrentAssignment == loc ) {
-                return;
+                if (_availablePeople.People.Contains(person)) {
+                    _availablePeople.Remove(person);
+                } else
+                    return;
             }
             if (_people.ContainsKey((int)person.PersonID!))
                 person = _people[(int)person.PersonID!];
@@ -558,6 +567,7 @@ public partial class DailyAssignment : Form {
             LoadFinalizedAssignments();
         else
             InitialAssignments();
+        Cursor.Current = Cursors.Default;
     }
     private void DailyAssignment_Resize(object sender, EventArgs e) {
         InitializeForm(true, false, true);
@@ -614,6 +624,8 @@ public partial class DailyAssignment : Form {
         } else {
             person = (Person)label.Tag!;
         }
+        if (_unavailablePeople.Contains(person))
+            SetAvailable(person);
         person = _people[(int)person.PersonID!];
         ReassignToTeam(person, newTeam);
         ReassignToTeam(person, newTeam);
@@ -646,6 +658,8 @@ public partial class DailyAssignment : Form {
                 return LabelPattern.MultiStacked;
         } else {
             List<Person> assignedToTeam = team.Slots.SelectMany(s => s.Assigned).ToList();
+            if (assignedToTeam.Count == 0)
+                return LabelPattern.None;
             int nonLeadMembers = assignedToTeam.Except([team.TeamLead]).Count();
             if (nonLeadMembers == assignedToTeam.Count && team.Clinical && team.Slots[0].Description == "Dentist")
                 nonLeadMembers--;
@@ -962,6 +976,10 @@ public partial class DailyAssignment : Form {
     #endregion
     private void ReassignToTeam(Person person, Team newTeam) {
         Team? currentTeam = person.Team;
+        Team currentTeamObj = new();
+        if (currentTeam is not null && _teams.Contains(currentTeam)) {
+            currentTeamObj = _teams.First(t => t == currentTeam);
+        }
         if (!person.Skills.Any(ps => newTeam.Slots.Select(ts => (Skill)ts).Contains(ps)))
             return;
         // newTeam is a special team
@@ -1027,18 +1045,17 @@ public partial class DailyAssignment : Form {
         }
         // person is TeamLead of current team
         if (currentTeam is not null && currentTeam.TeamLead is not null && currentTeam.TeamLead == person && newTeam.TeamLead is null) {
-            currentTeam.TeamLead = null;
-            person.Team = newTeam;
-            newTeam.TeamLead ??= person;
-            newTeam.AssignPerson(person, true);
-            person.AssignmentLocked = true;
+            int? targetSkill = newTeam.HighestPriorityMatch(person)?.SkillID;
+            if (targetSkill is null)
+                return;
+            currentTeamObj.ReassignPerson(person, newTeam, (int)targetSkill, true, true);
 
-            currentTeam.Slots.ForEach(s => {
+            currentTeamObj.Slots.ForEach(s => {
                 if (s.Assigned.Contains(person))
                     s.UnassignToSlot(person);
             });
-            for (int i = 0; i < currentTeam.Slots.Count; i++) {
-                var slot = currentTeam.Slots[i];
+            for (int i = 0; i < currentTeamObj.Slots.Count; i++) {
+                var slot = currentTeamObj.Slots[i];
                 for (int j = 0; j < slot.AssignedToSlot; j++) {
                     Person assignee = slot.GetAssignee(j);
                     if (assignee.Equals(currentTeam.TeamLead!)) {
@@ -1056,13 +1073,26 @@ public partial class DailyAssignment : Form {
                 }
                 slot.UnassignAll();
             }
-            _teams.Remove(currentTeam);
-            _defunctTeams.Add(currentTeam);
+            _teams.Remove(currentTeamObj);
+            _defunctTeams.Add(currentTeamObj);
         } else {
-            newTeam.AssignPerson(person, true);
+            if (person.Team is not null) {
+                int? targetSkill = newTeam.HighestPriorityMatch(person)?.SkillID;
+                if (targetSkill is null)
+                    return;
+                currentTeamObj.ReassignPerson(person, newTeam, (int)targetSkill, true, true);
+            } else {
+                newTeam.AssignPerson(person, true);
+            }
             person.AssignmentLocked = true;
         }
         SuspendLayout();
+        if (currentTeam is not null && currentTeamObj.AssignedCount == 0) {
+            _teams.Remove(currentTeamObj);
+            _defunctTeams.Add(currentTeamObj);
+            DeleteLables(currentTeamObj);
+            currentTeam = null;
+        }
         DeleteLables(newTeam);
         newTeam.LabelPattern = DetermineTeamPattern(newTeam);
         CreateLabels(newTeam);

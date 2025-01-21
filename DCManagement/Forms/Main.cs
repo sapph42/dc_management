@@ -47,6 +47,7 @@ public partial class Main : Form {
     }
 
     private void DailyButton_Click(object sender, EventArgs e) {
+        Cursor.Current = Cursors.WaitCursor;
         DailyAssignment dailyAssignment = new() {
             IsReadOnly = false
         };
@@ -59,6 +60,7 @@ public partial class Main : Form {
     }
 
     private void ReadOnlyButton_Click(object sender, EventArgs e) {
+        Cursor.Current = Cursors.WaitCursor;
         DailyAssignment dailyAssignment = new() {
             IsReadOnly = true
         };

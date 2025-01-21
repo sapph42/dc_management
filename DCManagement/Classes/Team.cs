@@ -28,6 +28,9 @@ public class Team : IEquatable<Team> {
     public Location? CurrentAssignment { get; set; }
     public TeamSlots Slots { get; set; } = [];
     public LabelPattern? LabelPattern { get; set; }
+    public int AssignedCount {
+        get => Slots.AssignedCount;
+    }
     public Team() {
         TeamName = string.Empty;
     }
@@ -53,8 +56,11 @@ public class Team : IEquatable<Team> {
             person.Team.Equals(this) &&
             person.AssignedSlot is not null)
             return;
+        if (person.Team is not null && person.Team.TeamLead == person) {
+            person.Team.TeamLead = null;
+        }
         person.Team = this;
-        var firstBestSlot = Slots.OrderBy(s => s.Priority).Where(s => person.Skills.Contains((Skill)s)).FirstOrDefault();
+        var firstBestSlot = Slots.OrderByDescending(s => s.Priority).Where(s => person.Skills.Contains((Skill)s)).FirstOrDefault();
         if (firstBestSlot is null)
             return;
         person.Team = this;
@@ -135,6 +141,15 @@ public class Team : IEquatable<Team> {
     public void ReassignPerson(Person person, Team newTeam, int skillID, bool OverrideLock = false, bool Lock = false, List<int>? ignoreSkills = default) {
         if (person.AssignmentLocked && !OverrideLock)
             return;
+        bool wasTeamLead = false;
+        if (person.Team is not null && person.Team.TeamLead == person) {
+            wasTeamLead = true;
+            person.Team.TeamLead = null;
+        }
+        if (TeamLead == person) {
+            wasTeamLead = true;
+            TeamLead = null;
+        }
         person.Team = newTeam;
         Slots.RemovePerson(person);
         if (!person.Available || !person.Active)
@@ -156,9 +171,21 @@ public class Team : IEquatable<Team> {
             .AssignToSlot(person);
         if (Lock)
             person.AssignmentLocked = true;
+        if (wasTeamLead)
+            newTeam.TeamLead ??= person;
     }
     public void RemovePerson(Person person) {
         Slots.RemovePerson(person);
+    }
+    public List<Person> UnassignAll() {
+        List<Person> unassigned = [];
+        Slots
+            .SelectMany(s => s.Assigned)
+            .ToList()
+            .ForEach(p => unassigned.Add(p));
+        Slots
+            .ForEach(s => s.UnassignAll());
+        return unassigned;
     }
     public override string ToString() {
         return TeamName;
