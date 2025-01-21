@@ -1617,6 +1617,37 @@ public class DataManagement {
         }
         return floats;
     }
+    public void RemoveDailyAssignment(Person person) {
+        RemoveDailyAssignment((int)person.PersonID!);
+    }
+    public void RemoveDailyAssignment(int PersonID) {
+        if (DataSource == DataSource.SQL)
+            RemoveDailyAssignment_Sql(PersonID);
+        else
+            RemoveDailyAssignment_Sqlite(PersonID);
+    }
+    private void RemoveDailyAssignment_Sql(int PersonID) {
+        using SqlConnection conn = new(_sqlConnectionString);
+        using SqlCommand cmd = new();
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.Add("@PersonID", SqlDbType.Int);
+        cmd.Parameters["@PersonID"].Value = PersonID;
+        cmd.CommandText = "dbo.DailyPersonRemove";
+        cmd.Connection = conn;
+        conn.Open();
+        _ = cmd.ExecuteNonQuery();
+    }
+    private void RemoveDailyAssignment_Sqlite(int PersonID) {
+        using SqliteConnection conn = new(_sqlConnectionString);
+        using SqliteCommand cmd = new();
+        cmd.CommandType = CommandType.Text;
+        cmd.Parameters.Add("@PersonID", SqliteType.Integer);
+        cmd.Parameters["@PersonID"].Value = PersonID;
+        cmd.CommandText = "DELETE FROM PersonAssignments WHERE (PersonID = @PersonID) AND AssignmentDate=DATE('now', 'localtime')";
+        cmd.Connection = conn;
+        conn.Open();
+        _ = cmd.ExecuteNonQuery();
+    }
     public void SetPersonUnavailable(Person person) {
         if (DataSource == DataSource.SQL)
             SetPersonUnavailable_Sql(person);

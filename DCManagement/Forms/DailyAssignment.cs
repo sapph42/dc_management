@@ -353,6 +353,7 @@ public partial class DailyAssignment : Form {
         }
         DrawUnavailable();
         person.AssignedSlot = null;
+        _data.RemoveDailyAssignment(person);
     }
     private void SetAvailable(Person person, bool toFloat = true) {
         _data.SetPersonAvailable(person);
@@ -370,6 +371,7 @@ public partial class DailyAssignment : Form {
         person.Team = _float;
         _availablePeople.People.Add(person);
         person.AssignedSlot = null;
+        _data.RemoveDailyAssignment(person);
         DrawFloat();
     }
     #endregion
