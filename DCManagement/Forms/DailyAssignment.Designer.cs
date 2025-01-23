@@ -28,13 +28,13 @@
             EditTSMI = new ToolStripMenuItem();
             RefreshToolStripMenuItem = new ToolStripMenuItem();
             FinalizeAssignmentsToolStripMenuItem = new ToolStripMenuItem();
+            ExportPDFToolStripMenuItem = new ToolStripMenuItem();
             MouseCoordTSMI = new ToolStripMenuItem();
             AlertMessagesTSMI = new ToolStripMenuItem();
             CancelPendingActionToolStripMenuItem = new ToolStripMenuItem();
             LabelContextMenu = new ContextMenuStrip(components);
             ToggleAvailabilityToolStripMenuItem = new ToolStripMenuItem();
             ReassignToTeamToolStripMenuItem = new ToolStripMenuItem();
-            ExportPDFToolStripMenuItem = new ToolStripMenuItem();
             EditMenu.SuspendLayout();
             LabelContextMenu.SuspendLayout();
             SuspendLayout();
@@ -68,6 +68,13 @@
             FinalizeAssignmentsToolStripMenuItem.Size = new Size(184, 22);
             FinalizeAssignmentsToolStripMenuItem.Text = "Finalize Assignments";
             FinalizeAssignmentsToolStripMenuItem.Click += FinalizeAssignmentsToolStripMenuItem_Click;
+            // 
+            // ExportPDFToolStripMenuItem
+            // 
+            ExportPDFToolStripMenuItem.Name = "ExportPDFToolStripMenuItem";
+            ExportPDFToolStripMenuItem.Size = new Size(184, 22);
+            ExportPDFToolStripMenuItem.Text = "Export PDF";
+            ExportPDFToolStripMenuItem.Click += ExportPDFToolStripMenuItem_Click;
             // 
             // MouseCoordTSMI
             // 
@@ -107,13 +114,6 @@
             ReassignToTeamToolStripMenuItem.Size = new Size(170, 22);
             ReassignToTeamToolStripMenuItem.Text = "Reassign To Team";
             // 
-            // ExportPDFToolStripMenuItem
-            // 
-            ExportPDFToolStripMenuItem.Name = "ExportPDFToolStripMenuItem";
-            ExportPDFToolStripMenuItem.Size = new Size(184, 22);
-            ExportPDFToolStripMenuItem.Text = "Export PDF";
-            ExportPDFToolStripMenuItem.Click += ExportPDFToolStripMenuItem_Click;
-            // 
             // DailyAssignment
             // 
             AllowDrop = true;
@@ -126,6 +126,8 @@
             Load += DailyAssignment_Load;
             DragDrop += DailyAssignment_DragDrop;
             DragOver += DailyAssignment_DragOver;
+            DragLeave += DailyAssignment_DragLeave;
+            GiveFeedback += DailyAssignment_GiveFeedback;
             MouseMove += DailyAssignment_MouseMove;
             Resize += DailyAssignment_Resize;
             EditMenu.ResumeLayout(false);

@@ -33,6 +33,7 @@ public partial class LocationManagement : Form {
     private Floorplan.Edge _edge = Floorplan.Edge.None;
     #endregion
     public LocationManagement() {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
         InitializeComponent();
         _data = new(Program.Source);
         _floorplan = new Floorplan() {
@@ -132,7 +133,7 @@ public partial class LocationManagement : Form {
             $"ActionAllowed: {_actionAllowed}, ActionState: {_actionState}, " +
             $"PendingLocation: {(_pendingLocation is null ? "IsNull" : "IsNotNull")} " +
             $"BackgroundImage: {(BackgroundImage is null ? "IsNull" : "IsNotNull")}");
-        if (e.Button == MouseButtons.Right || BackgroundImage is null)
+        if (e.Button != MouseButtons.Left || BackgroundImage is null)
             return;
         switch (_actionAllowed) {
             case ActionAllowed.Moving:
@@ -174,6 +175,8 @@ public partial class LocationManagement : Form {
                 _floorplan.ImageMoving = _floorplan.DrawLocations(_floorplan.Locations.Except([_lastClickLocation]));
                 BackgroundImage = _floorplan.ImageMoving;
                 Refresh();
+                MouseEventArgs dummyArgs = new(MouseButtons.Left, 1, e.X, e.Y, 0);
+                LocationManagement_MouseMove(this, dummyArgs);
                 break;
             default:
                 break;

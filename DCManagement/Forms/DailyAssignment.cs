@@ -27,6 +27,7 @@ public partial class DailyAssignment : Form {
     private Floorplan _floorplan;
     private Size _maxSize;
     private readonly List<Label> _labels = [];
+    private Cursor DragDropCustomCursor;
     public bool IsReadOnly = true;
     public DailyAssignment() {
         InitializeComponent();
@@ -238,7 +239,7 @@ public partial class DailyAssignment : Form {
         static bool leadTeamsMissingLeads(Team t) =>
             !t.FillIfNoLead &&
             t.TeamLead is not null &&
-            (!t.TeamLead.Active || !t.TeamLead.Available) &&
+            (!t.TeamLead.Active || !t.TeamLead.Available || (t.TeamLead.Team != t && t.TeamLead.Team is not null)) &&
             t.TeamName != "Float";
         static bool unleadTeamsMissingLeads(Team t) =>
             !t.FillIfNoLead &&
@@ -400,6 +401,8 @@ public partial class DailyAssignment : Form {
     }
     #region Form Event Handlers
     private void DailyAssignment_DragDrop(object sender, DragEventArgs e) {
+        Cursor.Current = Cursors.Default;
+        DragDropCustomCursor.Dispose();
         if (e.Data is null)
             return;
         if (e.Data.GetData(typeof(Label)) is not Label label)
@@ -498,7 +501,7 @@ public partial class DailyAssignment : Form {
             _teams.Remove(currentTeam);
             _defunctTeams.Add(currentTeam);
         } else if (newTeam is not null && tag is Person person) {
-            if (person.Team is not null && person.Team.TeamLead is not null && person.Team.TeamLead == person && newTeam.CurrentAssignment == loc ) {
+            if (person.Team is not null && person.Team.TeamLead is not null && person.Team.TeamLead == person && newTeam.CurrentAssignment == loc) {
                 if (_availablePeople.People.Contains(person)) {
                     _availablePeople.Remove(person);
                 } else
@@ -530,8 +533,20 @@ public partial class DailyAssignment : Form {
             CreateLabels(team);
         }
     }
+    private void DailyAssignment_DragLeave(object sender, EventArgs e) {
+        Cursor.Current = Cursors.Default;
+        DragDropCustomCursor.Dispose();
+    }
     private void DailyAssignment_DragOver(object sender, DragEventArgs e) {
+        if (e.Data is null || e.Data.GetData(typeof(Label)) is not Label label) {
+            Cursor.Current = Cursors.Default;
+            return;
+        }
         e.Effect = DragDropEffects.Move;
+    }
+    private void DailyAssignment_GiveFeedback(object sender, GiveFeedbackEventArgs e) {
+        e.UseDefaultCursors = false;
+        Cursor.Current = DragDropCustomCursor;
     }
     private void DailyAssignment_Load(object sender, EventArgs e) {
         _skills = _data.GetSkills();
@@ -637,8 +652,14 @@ public partial class DailyAssignment : Form {
     internal void SlotLabel_MouseDown(object? sender, MouseEventArgs e) {
         if (e.Button == MouseButtons.Left) {
             Label? label = sender as Label;
-            if (label is not null)
+            if (label is not null) {
+                using Bitmap labelBitmap = new(label.Width, label.Height);
+                label.DrawToBitmap(labelBitmap, new Rectangle(Point.Empty, label.Size));
+                IntPtr ptr = labelBitmap.GetHicon();
+                DragDropCustomCursor = new(ptr);
+                Cursor.Current = DragDropCustomCursor;
                 DoDragDrop(label, DragDropEffects.Move);
+            }
         }
     }
     #endregion
