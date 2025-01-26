@@ -32,9 +32,12 @@ public partial class DailyAssignment : Form {
     public DailyAssignment() {
         InitializeComponent();
         _data = new(Program.Source);
+        if (!IsReadOnly)
+            _data.BackupSqlToSqlite();
         _floorplan = new Floorplan() {
             Client = this
         };
+        DragDropCustomCursor = Cursors.Default;
         InitializeForm(true, true);
     }
     private void InitializeForm(bool baseInit = false, bool doResize = false, bool fullInit = false) {
@@ -538,7 +541,7 @@ public partial class DailyAssignment : Form {
         DragDropCustomCursor.Dispose();
     }
     private void DailyAssignment_DragOver(object sender, DragEventArgs e) {
-        if (e.Data is null || e.Data.GetData(typeof(Label)) is not Label label) {
+        if (e.Data is null || e.Data.GetData(typeof(Label)) is not Label) {
             Cursor.Current = Cursors.Default;
             return;
         }
